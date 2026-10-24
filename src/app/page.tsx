@@ -1,69 +1,416 @@
-import Image from "next/image";
+'use client';
+
+import React, { useState, useEffect } from 'react';
+import { Navbar } from '@/components/Navbar';
+import { BroFeed } from '@/components/BroFeed';
+import { PRBoard } from '@/components/PRBoard';
+import { SquadRadar } from '@/components/SquadRadar';
+import { LockerRoomMemes } from '@/components/LockerRoomMemes';
+import { ProfileView } from '@/components/ProfileView';
+import { WorkoutLoggerModal } from '@/components/WorkoutLoggerModal';
+import { AddPRModal } from '@/components/AddPRModal';
+import { SupabaseConfigModal } from '@/components/SupabaseConfigModal';
+import { gymBroStore } from '@/lib/storage';
+import { 
+  SEED_USERS, 
+  SEED_SQUADS, 
+  SEED_POSTS, 
+  SEED_PRS, 
+  SEED_NUDGES 
+} from '@/lib/seed-data';
+import { 
+  UserProfile, 
+  Squad, 
+  FeedPost, 
+  PersonalRecord, 
+  BroNudge, 
+  ReactionType,
+  SplitType,
+  WorkoutExercise
+} from '@/types';
+import { 
+  Flame, 
+  Trophy, 
+  Dumbbell, 
+  Radio, 
+  Users, 
+  MapPin, 
+  Sparkles,
+  ChevronRight
+} from 'lucide-react';
+import { formatWeight, triggerPRConfetti } from '@/lib/utils';
 
 export default function Home() {
+  const [currentUser, setCurrentUser] = useState<UserProfile>(SEED_USERS[0]);
+  const [allUsers, setAllUsers] = useState<UserProfile[]>(SEED_USERS);
+  const [squads, setSquads] = useState<Squad[]>(SEED_SQUADS);
+  const [activeSquadId, setActiveSquadId] = useState<string>('all');
+  const [posts, setPosts] = useState<FeedPost[]>(SEED_POSTS);
+  const [prs, setPrs] = useState<PersonalRecord[]>(SEED_PRS);
+  const [nudges, setNudges] = useState<BroNudge[]>(SEED_NUDGES);
+
+  const [activeTab, setActiveTab] = useState<'feed' | 'prs' | 'radar' | 'memes' | 'profile'>('feed');
+  const [isLogWorkoutOpen, setIsLogWorkoutOpen] = useState(false);
+  const [isAddPROpen, setIsAddPROpen] = useState(false);
+  const [isSupabaseModalOpen, setIsSupabaseModalOpen] = useState(false);
+
+  // Initialize store and sync persisted data on client
+  useEffect(() => {
+    gymBroStore.init();
+    refreshAllData();
+  }, []);
+
+  const refreshAllData = () => {
+    setCurrentUser(gymBroStore.getCurrentUser());
+    setAllUsers(gymBroStore.getAllUsers());
+    setSquads(gymBroStore.getSquads());
+    setPosts(gymBroStore.getFeedPosts());
+    setPrs(gymBroStore.getPersonalRecords());
+    setNudges(gymBroStore.getNudges());
+  };
+
+  const handleSwitchUser = (userId: string) => {
+    const user = gymBroStore.switchUser(userId);
+    setCurrentUser(user);
+    refreshAllData();
+  };
+
+  const handleSelectSquad = (id: string) => {
+    setActiveSquadId(id);
+    setPosts(gymBroStore.getFeedPosts(id));
+  };
+
+  const handleToggleReaction = (postId: string, reaction: ReactionType) => {
+    const updated = gymBroStore.toggleReaction(postId, reaction);
+    setPosts(updated);
+  };
+
+  const handleAddComment = (postId: string, content: string) => {
+    gymBroStore.addComment(postId, content);
+    setPosts(gymBroStore.getFeedPosts(activeSquadId));
+  };
+
+  const handleSaveWorkout = (workoutData: {
+    title: string;
+    split: SplitType;
+    duration_minutes: number;
+    notes?: string;
+    photo_url?: string;
+    energy_rating: number;
+    exercises: WorkoutExercise[];
+    postToFeed?: boolean;
+    squad_id?: string;
+  }) => {
+    gymBroStore.logWorkout(workoutData);
+    refreshAllData();
+  };
+
+  const handleSavePR = (prData: {
+    exercise_name: string;
+    weight_kg: number;
+    reps: number;
+    proof_media_url?: string;
+    shoutout_note?: string;
+  }) => {
+    gymBroStore.addPersonalRecord(prData);
+    refreshAllData();
+  };
+
+  const handleSendNudge = (toUserId: string, message: string) => {
+    gymBroStore.sendNudge(toUserId, message);
+    setNudges(gymBroStore.getNudges());
+  };
+
+  const handleRespondNudge = (nudgeId: string) => {
+    gymBroStore.updateNudgeStatus(nudgeId, 'hit_gym');
+    setNudges(gymBroStore.getNudges());
+    triggerPRConfetti();
+  };
+
+  const handlePostMeme = (content: string, mediaUrl: string) => {
+    gymBroStore.createFeedPost({
+      content,
+      type: 'meme',
+      media_url: mediaUrl,
+      squad_id: activeSquadId === 'all' ? undefined : activeSquadId,
+    });
+    setPosts(gymBroStore.getFeedPosts(activeSquadId));
+  };
+
+  const handleQuickPost = (content: string) => {
+    gymBroStore.createFeedPost({
+      content,
+      type: 'announcement',
+      squad_id: activeSquadId === 'all' ? undefined : activeSquadId,
+    });
+    setPosts(gymBroStore.getFeedPosts(activeSquadId));
+  };
+
+  const handleUpdateProfile = (updated: Partial<UserProfile>) => {
+    const updatedProfile = gymBroStore.updateUserProfile(updated);
+    setCurrentUser(updatedProfile);
+    refreshAllData();
+  };
+
+  const handleResetData = () => {
+    gymBroStore.resetToDefaults();
+    refreshAllData();
+  };
+
+  const activeSquad = squads.find((s) => s.id === activeSquadId) || squads[0];
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+    <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col selection:bg-emerald-500 selection:text-zinc-950">
+      {/* Sticky Header */}
+      <Navbar
+        currentUser={currentUser}
+        allUsers={allUsers}
+        squads={squads}
+        activeSquadId={activeSquadId}
+        onSelectSquad={handleSelectSquad}
+        onSwitchUser={handleSwitchUser}
+        onOpenLogWorkout={() => setIsLogWorkoutOpen(true)}
+        onOpenSupabaseModal={() => setIsSupabaseModalOpen(true)}
+        nudges={nudges}
+        onRespondNudge={handleRespondNudge}
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+      />
+
+      {/* Main App Layout */}
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          {/* Main Content Area (Tabs) */}
+          <div className="lg:col-span-8">
+            {activeTab === 'feed' && (
+              <BroFeed
+                posts={posts}
+                currentUser={currentUser}
+                onToggleReaction={handleToggleReaction}
+                onAddComment={handleAddComment}
+                onOpenLogWorkout={() => setIsLogWorkoutOpen(true)}
+                onOpenMemeModal={() => setActiveTab('memes')}
+                onOpenPRModal={() => setIsAddPROpen(true)}
+                onCreateQuickPost={handleQuickPost}
+              />
+            )}
+
+            {activeTab === 'prs' && (
+              <PRBoard
+                prs={prs}
+                allUsers={allUsers}
+                currentUser={currentUser}
+                onOpenAddPR={() => setIsAddPROpen(true)}
+              />
+            )}
+
+            {activeTab === 'radar' && (
+              <SquadRadar
+                allUsers={allUsers}
+                currentUser={currentUser}
+                nudges={nudges}
+                onSendNudge={handleSendNudge}
+                onRespondNudge={handleRespondNudge}
+              />
+            )}
+
+            {activeTab === 'memes' && (
+              <LockerRoomMemes
+                posts={posts}
+                currentUser={currentUser}
+                onPostMeme={handlePostMeme}
+                onToggleReaction={handleToggleReaction}
+                onAddComment={handleAddComment}
+              />
+            )}
+
+            {activeTab === 'profile' && (
+              <ProfileView
+                user={currentUser}
+                onUpdateProfile={handleUpdateProfile}
+              />
+            )}
+          </div>
+
+          {/* Right Sidebar: Brotherhood Quick Hub */}
+          <aside className="lg:col-span-4 space-y-6">
+            {/* Squad Radar Snapshot */}
+            <div className="p-5 rounded-2xl bg-zinc-900/90 border border-zinc-800 shadow-md">
+              <div className="flex items-center justify-between pb-3 border-b border-zinc-800 mb-3.5">
+                <div className="flex items-center space-x-2">
+                  <Radio className="w-4 h-4 text-emerald-400 animate-pulse" />
+                  <span className="text-xs font-bold uppercase tracking-wider text-white">
+                    Squad Live Radar
+                  </span>
+                </div>
+                <button
+                  onClick={() => setActiveTab('radar')}
+                  className="text-xs font-bold text-emerald-400 hover:underline flex items-center gap-0.5"
+                >
+                  View All <ChevronRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
+              <div className="space-y-3">
+                {allUsers.slice(0, 4).map((user) => {
+                  const isCurrentUser = user.id === currentUser.id;
+
+                  return (
+                    <div
+                      key={user.id}
+                      className="flex items-center justify-between text-xs p-2 rounded-xl bg-zinc-950/60 border border-zinc-800/60 hover:border-zinc-700 transition"
+                    >
+                      <div className="flex items-center space-x-2.5 truncate pr-2">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={user.avatar_url}
+                          alt={user.full_name}
+                          className="w-7 h-7 rounded-lg object-cover ring-1 ring-zinc-700"
+                        />
+                        <div className="truncate">
+                          <div className="font-bold text-white truncate flex items-center gap-1">
+                            {user.full_name.split(' ')[0]}
+                            {isCurrentUser && (
+                              <span className="text-[9px] uppercase px-1 rounded bg-emerald-500/20 text-emerald-400 font-extrabold">
+                                You
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-[10px] text-zinc-500 truncate flex items-center gap-1">
+                            <MapPin className="w-2.5 h-2.5 text-emerald-400 shrink-0" />
+                            {user.current_location.split('(')[0]}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="shrink-0 text-right">
+                        {user.status === 'at_the_gym' && (
+                          <span className="text-[10px] font-extrabold text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">
+                            At Gym 🏋️
+                          </span>
+                        )}
+                        {user.status === 'pumped' && (
+                          <span className="text-[10px] font-bold text-sky-400 bg-sky-500/10 px-1.5 py-0.5 rounded">
+                            Hit Today ✓
+                          </span>
+                        )}
+                        {user.status === 'resting' && (
+                          <span className="text-[10px] font-bold text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded">
+                            Resting 💤
+                          </span>
+                        )}
+                        {user.status === 'needs_motivation' && (
+                          <span className="text-[10px] font-bold text-rose-400 bg-rose-500/10 px-1.5 py-0.5 rounded">
+                            Needs Nudge ⚠️
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Top Squad PR Highlight */}
+            <div className="p-5 rounded-2xl bg-gradient-to-b from-amber-500/10 via-zinc-900 to-zinc-950 border border-amber-500/30 shadow-md">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-xs font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+                  <Trophy className="w-3.5 h-3.5" />
+                  Iron Wall Highlight
+                </span>
+                <button
+                  onClick={() => setActiveTab('prs')}
+                  className="text-xs font-bold text-amber-400 hover:underline"
+                >
+                  Leaderboard
+                </button>
+              </div>
+
+              {prs[0] && (
+                <div className="space-y-2">
+                  <div className="text-base font-black text-white">
+                    {prs[0].exercise_name}: {formatWeight(prs[0].weight_kg)}
+                  </div>
+                  <div className="text-xs text-zinc-300">
+                    Smashed by <span className="text-amber-400 font-bold">{prs[0].user?.full_name || 'Alex'}</span>
+                  </div>
+                  {prs[0].shoutout_note && (
+                    <p className="text-[11px] text-zinc-400 italic bg-zinc-950/70 p-2 rounded-lg border border-zinc-800">
+                      "{prs[0].shoutout_note}"
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Active Squad Details & Invite Card */}
+            <div className="p-5 rounded-2xl bg-zinc-900/90 border border-zinc-800 shadow-md">
+              <div className="flex items-center space-x-2.5 mb-2.5">
+                <div className="p-2 rounded-xl bg-emerald-500/15 text-emerald-400">
+                  <Users className="w-4 h-4" />
+                </div>
+                <div>
+                  <div className="text-xs font-bold text-white">{activeSquad.name}</div>
+                  <div className="text-[10px] text-zinc-400">{activeSquad.member_count} connected gym partners</div>
+                </div>
+              </div>
+
+              <p className="text-xs text-zinc-400 mb-3.5 leading-relaxed">
+                {activeSquad.description}
+              </p>
+
+              <div className="p-3 rounded-xl bg-zinc-950 border border-zinc-800 flex items-center justify-between">
+                <div>
+                  <div className="text-[10px] uppercase font-bold text-zinc-500">Squad Invite Code</div>
+                  <div className="text-xs font-black text-emerald-400 font-mono tracking-widest">
+                    {activeSquad.invite_code}
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(activeSquad.invite_code);
+                    alert(`Invite code ${activeSquad.invite_code} copied! Send to your gym partner.`);
+                  }}
+                  className="px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-white font-bold text-xs transition"
+                >
+                  Copy Code
+                </button>
+              </div>
+            </div>
+
+            {/* Accountability Quote */}
+            <div className="p-4 rounded-2xl bg-zinc-950 border border-zinc-800/80 text-center space-y-1.5">
+              <div className="text-sm">🏋️‍♂️ 💬</div>
+              <p className="text-xs text-zinc-300 font-medium italic">
+                "We may not share the same barbell rack today, but the standard we set together never drops."
+              </p>
+              <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest pt-1">
+                — GymBro Brotherhood
+              </div>
+            </div>
+          </aside>
         </div>
       </main>
+
+      {/* Modals */}
+      <WorkoutLoggerModal
+        isOpen={isLogWorkoutOpen}
+        onClose={() => setIsLogWorkoutOpen(false)}
+        onSaveWorkout={handleSaveWorkout}
+        activeSquadId={activeSquadId}
+      />
+
+      <AddPRModal
+        isOpen={isAddPROpen}
+        onClose={() => setIsAddPROpen(false)}
+        onSavePR={handleSavePR}
+      />
+
+      <SupabaseConfigModal
+        isOpen={isSupabaseModalOpen}
+        onClose={() => setIsSupabaseModalOpen(false)}
+        onResetData={handleResetData}
+      />
     </div>
   );
 }
