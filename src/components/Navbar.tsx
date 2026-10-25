@@ -12,7 +12,8 @@ import {
   Check, 
   MapPin, 
   Sparkles,
-  Award
+  Award,
+  Shield
 } from 'lucide-react';
 import { UserProfile, Squad, BroNudge } from '@/types';
 import { isSupabaseConfigured } from '@/lib/supabase/client';
@@ -28,8 +29,8 @@ interface NavbarProps {
   onOpenSupabaseModal: () => void;
   nudges: BroNudge[];
   onRespondNudge: (nudgeId: string) => void;
-  activeTab: 'feed' | 'prs' | 'radar' | 'memes' | 'profile';
-  setActiveTab: (tab: 'feed' | 'prs' | 'radar' | 'memes' | 'profile') => void;
+  activeTab: 'feed' | 'prs' | 'guilds' | 'radar' | 'memes' | 'profile';
+  setActiveTab: (tab: 'feed' | 'prs' | 'guilds' | 'radar' | 'memes' | 'profile') => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -144,6 +145,17 @@ export const Navbar: React.FC<NavbarProps> = ({
               }`}
             >
               The Chalkboard
+            </button>
+            <button
+              onClick={() => setActiveTab('guilds')}
+              className={`px-3 py-2 rounded-lg text-sm font-semibold transition flex items-center gap-1.5 ${
+                activeTab === 'guilds'
+                  ? 'bg-zinc-800 text-white shadow-sm ring-1 ring-emerald-500/30'
+                  : 'text-zinc-400 hover:text-white hover:bg-zinc-900'
+              }`}
+            >
+              <Shield className="w-4 h-4 text-emerald-400" />
+              Guilds & Wars
             </button>
             <button
               onClick={() => setActiveTab('prs')}
@@ -369,6 +381,15 @@ export const Navbar: React.FC<NavbarProps> = ({
             }`}
           >
             The Chalkboard
+          </button>
+          <button
+            onClick={() => setActiveTab('guilds')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition flex items-center gap-1 ${
+              activeTab === 'guilds' ? 'bg-zinc-800 text-white ring-1 ring-emerald-500/40' : 'text-zinc-400 hover:text-white'
+            }`}
+          >
+            <Shield className="w-3.5 h-3.5 text-emerald-400" />
+            Guilds
           </button>
           <button
             onClick={() => setActiveTab('prs')}

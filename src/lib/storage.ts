@@ -6,7 +6,17 @@ import {
   Workout, 
   BroNudge, 
   ReactionType,
-  PostComment
+  PostComment,
+  Guild,
+  GuildMember,
+  GuildInvitation,
+  GuildWar,
+  GuildWarCategory,
+  GuildWarStatus,
+  GuildWarParticipant,
+  GuildWarContribution,
+  GuildWarResult,
+  Friendship
 } from '@/types';
 import { 
   SEED_USERS, 
@@ -15,8 +25,24 @@ import {
   SEED_PRS, 
   SEED_NUDGES 
 } from './seed-data';
+import {
+  SEED_GUILDS,
+  SEED_GUILD_MEMBERS,
+  SEED_GUILD_INVITATIONS,
+  SEED_GUILD_WARS,
+  SEED_WAR_PARTICIPANTS,
+  SEED_WAR_CONTRIBUTIONS,
+  SEED_FRIENDSHIPS
+} from './seed-guilds';
 import { isSupabaseConfigured, getSupabase } from './supabase/client';
 import { calculateOneRepMax } from './utils';
+import { 
+  evaluateWorkoutContribution, 
+  evaluatePRContribution, 
+  calculateGuildWarScores, 
+  finalizeGuildWar, 
+  DEFAULT_SCORING_POLICIES 
+} from './scoring-engine';
 
 const STORAGE_KEYS = {
   CURRENT_USER: 'gymbro_current_user',
@@ -25,6 +51,14 @@ const STORAGE_KEYS = {
   PRS: 'gymbro_prs',
   SQUADS: 'gymbro_squads',
   NUDGES: 'gymbro_nudges',
+  // Guilds & Wars keys
+  GUILDS: 'gymbro_guilds',
+  GUILD_MEMBERS: 'gymbro_guild_members',
+  GUILD_INVITATIONS: 'gymbro_guild_invitations',
+  GUILD_WARS: 'gymbro_guild_wars',
+  WAR_PARTICIPANTS: 'gymbro_war_participants',
+  WAR_CONTRIBUTIONS: 'gymbro_war_contributions',
+  FRIENDSHIPS: 'gymbro_friendships',
 };
 
 // Client-safe storage helper
@@ -70,6 +104,28 @@ class GymBroStore {
     if (!localStorage.getItem(STORAGE_KEYS.NUDGES)) {
       this.setItem(STORAGE_KEYS.NUDGES, SEED_NUDGES);
     }
+    // Initialize Guilds & Wars
+    if (!localStorage.getItem(STORAGE_KEYS.GUILDS)) {
+      this.setItem(STORAGE_KEYS.GUILDS, SEED_GUILDS);
+    }
+    if (!localStorage.getItem(STORAGE_KEYS.GUILD_MEMBERS)) {
+      this.setItem(STORAGE_KEYS.GUILD_MEMBERS, SEED_GUILD_MEMBERS);
+    }
+    if (!localStorage.getItem(STORAGE_KEYS.GUILD_INVITATIONS)) {
+      this.setItem(STORAGE_KEYS.GUILD_INVITATIONS, SEED_GUILD_INVITATIONS);
+    }
+    if (!localStorage.getItem(STORAGE_KEYS.GUILD_WARS)) {
+      this.setItem(STORAGE_KEYS.GUILD_WARS, SEED_GUILD_WARS);
+    }
+    if (!localStorage.getItem(STORAGE_KEYS.WAR_PARTICIPANTS)) {
+      this.setItem(STORAGE_KEYS.WAR_PARTICIPANTS, SEED_WAR_PARTICIPANTS);
+    }
+    if (!localStorage.getItem(STORAGE_KEYS.WAR_CONTRIBUTIONS)) {
+      this.setItem(STORAGE_KEYS.WAR_CONTRIBUTIONS, SEED_WAR_CONTRIBUTIONS);
+    }
+    if (!localStorage.getItem(STORAGE_KEYS.FRIENDSHIPS)) {
+      this.setItem(STORAGE_KEYS.FRIENDSHIPS, SEED_FRIENDSHIPS);
+    }
   }
 
   // --- Users ---
@@ -102,25 +158,33 @@ class GymBroStore {
     return newProfile;
   }
 
+  // --- Friendships ---
+  public getFriends(userId: string): UserProfile[] {
+    const friendships = this.getItem<Friendship[]>(STORAGE_KEYS.FRIENDSHIPS, SEED_FRIENDSHIPS);
+    const users = this.getAllUsers();
+    const acceptedFriendsIds = friendships
+      .filter(f => f.status === 'accepted' && (f.user_id === userId || f.friend_id === userId))
+      .map(f => f.user_id === userId ? f.friend_id : f.user_id);
+    
+    return users.filter(u => acceptedFriendsIds.includes(u.id));
+  }
+
+  public getAcceptedFriends(userId: string): UserProfile[] {
+    return this.getFriends(userId);
+  }
+
+  public isFriend(userId: string, targetId: string): boolean {
+    if (userId === targetId) return true;
+    const friendships = this.getItem<Friendship[]>(STORAGE_KEYS.FRIENDSHIPS, SEED_FRIENDSHIPS);
+    return friendships.some(
+      f => f.status === 'accepted' && 
+      ((f.user_id === userId && f.friend_id === targetId) || (f.user_id === targetId && f.friend_id === userId))
+    );
+  }
+
   // --- Squads ---
   public getSquads(): Squad[] {
     return this.getItem<Squad[]>(STORAGE_KEYS.SQUADS, SEED_SQUADS);
-  }
-
-  public createSquad(name: string, description: string): Squad {
-    const current = this.getCurrentUser();
-    const newSquad: Squad = {
-      id: `squad-${Date.now()}`,
-      name,
-      description,
-      member_count: 1,
-      created_by: current.id,
-      invite_code: `BRO-${Math.random().toString(36).substring(2, 7).toUpperCase()}`,
-      avatar_url: 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?w=200&auto=format&fit=crop&q=80',
-    };
-    const squads = [newSquad, ...this.getSquads()];
-    this.setItem(STORAGE_KEYS.SQUADS, squads);
-    return newSquad;
   }
 
   // --- Feed Posts ---
@@ -155,13 +219,7 @@ class GymBroStore {
       media_url: data.media_url,
       workout: data.workout,
       pr: data.pr,
-      reactions: {
-        fist_bump: 0,
-        fire: 0,
-        heavy: 0,
-        hype: 0,
-        skull: 0,
-      },
+      reactions: { fist_bump: 0, fire: 0, heavy: 0, hype: 0, skull: 0 },
       user_reactions: [],
       comments_count: 0,
       comments: [],
@@ -172,22 +230,6 @@ class GymBroStore {
     const updated = [newPost, ...currentPosts];
     this.setItem(STORAGE_KEYS.POSTS, updated);
 
-    // If Supabase is connected, sync asynchronously in background
-    if (isSupabaseConfigured) {
-      const sb = getSupabase();
-      if (sb) {
-        sb.from('feed_posts').insert({
-          user_id: user.id,
-          squad_id: squad?.id,
-          type: data.type,
-          content: data.content,
-          media_url: data.media_url,
-        }).then(({ error }) => {
-          if (error) console.error('Supabase feed post sync error:', error);
-        });
-      }
-    }
-
     return newPost;
   }
 
@@ -195,7 +237,6 @@ class GymBroStore {
     const posts = this.getFeedPosts();
     const updated = posts.map((post) => {
       if (post.id !== postId) return post;
-
       const hasReacted = post.user_reactions.includes(reactionType);
       const newReactions = { ...post.reactions };
       let newUserReactions = [...post.user_reactions];
@@ -208,11 +249,7 @@ class GymBroStore {
         newUserReactions.push(reactionType);
       }
 
-      return {
-        ...post,
-        reactions: newReactions,
-        user_reactions: newUserReactions,
-      };
+      return { ...post, reactions: newReactions, user_reactions: newUserReactions };
     });
 
     this.setItem(STORAGE_KEYS.POSTS, updated);
@@ -234,18 +271,14 @@ class GymBroStore {
     const updated = posts.map((post) => {
       if (post.id !== postId) return post;
       const comments = post.comments ? [...post.comments, newComment] : [newComment];
-      return {
-        ...post,
-        comments,
-        comments_count: (post.comments_count || 0) + 1,
-      };
+      return { ...post, comments, comments_count: (post.comments_count || 0) + 1 };
     });
 
     this.setItem(STORAGE_KEYS.POSTS, updated);
     return newComment;
   }
 
-  // --- Workouts ---
+  // --- Workouts & Automatic Guild War Consistency Scoring ---
   public logWorkout(workoutData: {
     title: string;
     split: Workout['split'];
@@ -259,7 +292,6 @@ class GymBroStore {
   }): Workout {
     const user = this.getCurrentUser();
 
-    // Calculate total volume (sets * reps * weight)
     const totalVolume = workoutData.exercises.reduce((acc, ex) => {
       return acc + ex.sets * ex.reps * ex.weight_kg;
     }, 0);
@@ -301,6 +333,9 @@ class GymBroStore {
       }
     });
 
+    // Automatically check any active Consistency War for user's guilds
+    this.processWorkoutForActiveGuildWars(workout);
+
     // Automatically post to feed if enabled
     if (workoutData.postToFeed !== false) {
       this.createFeedPost({
@@ -315,7 +350,7 @@ class GymBroStore {
     return workout;
   }
 
-  // --- Personal Records (PR Board) ---
+  // --- Personal Records & Automatic Guild War Strength Scoring ---
   public getPersonalRecords(exerciseName?: string): PersonalRecord[] {
     const prs = this.getItem<PersonalRecord[]>(STORAGE_KEYS.PRS, SEED_PRS);
     if (exerciseName && exerciseName !== 'All') {
@@ -354,6 +389,9 @@ class GymBroStore {
     const currentPrs = this.getPersonalRecords();
     this.setItem(STORAGE_KEYS.PRS, [newPr, ...currentPrs]);
 
+    // Process PR for active Strength Guild Wars
+    this.processPRForActiveGuildWars(newPr);
+
     // Create an automatic PR announcement post in the feed
     this.createFeedPost({
       content: `🔥 BRO PR ALERT! Hit ${data.weight_kg} kg (${Math.round(data.weight_kg * 2.20462)} lbs) on ${data.exercise_name} for ${data.reps} rep${data.reps > 1 ? 's' : ''}! ${data.shoutout_note || ''}`,
@@ -363,6 +401,594 @@ class GymBroStore {
     });
 
     return newPr;
+  }
+
+  // ==============================================================================
+  // GUILDS SYSTEM MANAGEMENT
+  // ==============================================================================
+
+  public getGuilds(): Guild[] {
+    const guilds = this.getItem<Guild[]>(STORAGE_KEYS.GUILDS, SEED_GUILDS);
+    const members = this.getItem<GuildMember[]>(STORAGE_KEYS.GUILD_MEMBERS, SEED_GUILD_MEMBERS);
+    const users = this.getAllUsers();
+
+    return guilds.map(g => {
+      const gMembers = members.filter(m => m.guild_id === g.id && m.status === 'active');
+      const captain = users.find(u => u.id === g.captain_id);
+      return {
+        ...g,
+        member_count: gMembers.length,
+        captain,
+      };
+    });
+  }
+
+  public getGuildById(guildId: string): Guild | undefined {
+    return this.getGuilds().find(g => g.id === guildId);
+  }
+
+  public getUserGuilds(userId: string): Guild[] {
+    const members = this.getItem<GuildMember[]>(STORAGE_KEYS.GUILD_MEMBERS, SEED_GUILD_MEMBERS);
+    const userGuildIds = members
+      .filter(m => m.user_id === userId && m.status === 'active')
+      .map(m => m.guild_id);
+    
+    return this.getGuilds().filter(g => userGuildIds.includes(g.id));
+  }
+
+  public createGuild(data: { name: string; description: string; emblem_url: string }): { success: boolean; guild?: Guild; error?: string } {
+    const user = this.getCurrentUser();
+    const guilds = this.getGuilds();
+
+    // Validation: name cannot be empty or already taken
+    const trimmedName = data.name.trim();
+    if (!trimmedName || trimmedName.length < 3) {
+      return { success: false, error: 'Guild name must be at least 3 characters long' };
+    }
+
+    if (guilds.some(g => g.name.toLowerCase() === trimmedName.toLowerCase())) {
+      return { success: false, error: 'A Guild with this name already exists' };
+    }
+
+    const slug = trimmedName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+    const newGuild: Guild = {
+      id: `guild-${Date.now()}`,
+      name: trimmedName,
+      slug,
+      description: data.description.trim() || 'A brotherhood guild dedicated to heavy lifting and mutual accountability.',
+      emblem_url: data.emblem_url.trim() || 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?w=300&auto=format&fit=crop&q=80',
+      captain_id: user.id,
+      captain: user,
+      invite_code: `GUILD-${Math.random().toString(36).substring(2, 7).toUpperCase()}`,
+      member_count: 1,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      stats: {
+        total_wars: 0,
+        consistency_wins: 0,
+        strength_wins: 0,
+        total_points: 0,
+        current_war_streak: 0,
+        achievements: ['Guild Founded'],
+      },
+    };
+
+    const newMember: GuildMember = {
+      id: `gm-${Date.now()}`,
+      guild_id: newGuild.id,
+      user_id: user.id,
+      user,
+      role: 'captain',
+      status: 'active',
+      joined_at: new Date().toISOString(),
+    };
+
+    this.setItem(STORAGE_KEYS.GUILDS, [newGuild, ...guilds]);
+    this.setItem(STORAGE_KEYS.GUILD_MEMBERS, [...this.getItem<GuildMember[]>(STORAGE_KEYS.GUILD_MEMBERS, SEED_GUILD_MEMBERS), newMember]);
+
+    return { success: true, guild: newGuild };
+  }
+
+  public updateGuild(guildId: string, updates: { name?: string; description?: string; emblem_url?: string }): { success: boolean; error?: string } {
+    const user = this.getCurrentUser();
+    const guild = this.getGuildById(guildId);
+    if (!guild) return { success: false, error: 'Guild not found' };
+    if (guild.captain_id !== user.id) return { success: false, error: 'Only the captain can modify Guild settings' };
+
+    const guilds = this.getGuilds().map(g => {
+      if (g.id !== guildId) return g;
+      return {
+        ...g,
+        name: updates.name ? updates.name.trim() : g.name,
+        description: updates.description !== undefined ? updates.description.trim() : g.description,
+        emblem_url: updates.emblem_url || g.emblem_url,
+        updated_at: new Date().toISOString(),
+      };
+    });
+
+    this.setItem(STORAGE_KEYS.GUILDS, guilds);
+    return { success: true };
+  }
+
+  public getGuildMembers(guildId: string): GuildMember[] {
+    const members = this.getItem<GuildMember[]>(STORAGE_KEYS.GUILD_MEMBERS, SEED_GUILD_MEMBERS);
+    const users = this.getAllUsers();
+    return members
+      .filter(m => m.guild_id === guildId && m.status === 'active')
+      .map(m => ({ ...m, user: users.find(u => u.id === m.user_id) }));
+  }
+
+  public leaveGuild(guildId: string, userId: string): { success: boolean; error?: string } {
+    const guild = this.getGuildById(guildId);
+    if (!guild) return { success: false, error: 'Guild not found' };
+
+    const members = this.getGuildMembers(guildId);
+    if (guild.captain_id === userId) {
+      if (members.length > 1) {
+        return { success: false, error: 'Captains must transfer captaincy to another member before leaving the Guild.' };
+      }
+    }
+
+    const allMembers = this.getItem<GuildMember[]>(STORAGE_KEYS.GUILD_MEMBERS, SEED_GUILD_MEMBERS);
+    const updated = allMembers.filter(m => !(m.guild_id === guildId && m.user_id === userId));
+    this.setItem(STORAGE_KEYS.GUILD_MEMBERS, updated);
+
+    // If last member left, remove guild
+    if (members.length <= 1) {
+      const remainingGuilds = this.getGuilds().filter(g => g.id !== guildId);
+      this.setItem(STORAGE_KEYS.GUILDS, remainingGuilds);
+    }
+
+    return { success: true };
+  }
+
+  public transferCaptaincy(guildId: string, currentCaptainId: string, newCaptainId: string): { success: boolean; error?: string } {
+    const guild = this.getGuildById(guildId);
+    if (!guild) return { success: false, error: 'Guild not found' };
+    if (guild.captain_id !== currentCaptainId) return { success: false, error: 'Only the current captain can transfer captaincy' };
+
+    // Update guild
+    const guilds = this.getGuilds().map(g => (g.id === guildId ? { ...g, captain_id: newCaptainId } : g));
+    this.setItem(STORAGE_KEYS.GUILDS, guilds);
+
+    // Update members roles
+    const allMembers = this.getItem<GuildMember[]>(STORAGE_KEYS.GUILD_MEMBERS, SEED_GUILD_MEMBERS);
+    const updatedMembers = allMembers.map(m => {
+      if (m.guild_id !== guildId) return m;
+      if (m.user_id === newCaptainId) return { ...m, role: 'captain' as const };
+      if (m.user_id === currentCaptainId) return { ...m, role: 'member' as const };
+      return m;
+    });
+    this.setItem(STORAGE_KEYS.GUILD_MEMBERS, updatedMembers);
+
+    return { success: true };
+  }
+
+  // --- Guild Invitations (Friends Only) ---
+  public sendGuildInvitation(guildId: string, inviteeUserId: string): { success: boolean; error?: string } {
+    const inviter = this.getCurrentUser();
+    const guild = this.getGuildById(guildId);
+    if (!guild) return { success: false, error: 'Guild not found' };
+
+    // Requirement: only captain can invite
+    if (guild.captain_id !== inviter.id) {
+      return { success: false, error: 'Only the Guild captain can invite new members.' };
+    }
+
+    // Requirement: Must be an accepted GymBro friend!
+    if (!this.isFriend(inviter.id, inviteeUserId)) {
+      return { success: false, error: 'Guild membership is private: you can only invite accepted GymBro friends.' };
+    }
+
+    // Check if user is already a member
+    const existingMembers = this.getGuildMembers(guildId);
+    if (existingMembers.some(m => m.user_id === inviteeUserId)) {
+      return { success: false, error: 'User is already an active member of this Guild.' };
+    }
+
+    // Check if already invited
+    const invites = this.getItem<GuildInvitation[]>(STORAGE_KEYS.GUILD_INVITATIONS, SEED_GUILD_INVITATIONS);
+    if (invites.some(i => i.guild_id === guildId && i.invitee_user_id === inviteeUserId && i.status === 'pending')) {
+      return { success: false, error: 'An invitation has already been sent to this friend.' };
+    }
+
+    const newInvite: GuildInvitation = {
+      id: `inv-${Date.now()}`,
+      guild_id: guildId,
+      inviter_user_id: inviter.id,
+      invitee_user_id: inviteeUserId,
+      status: 'pending',
+      created_at: new Date().toISOString(),
+      expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+    };
+
+    this.setItem(STORAGE_KEYS.GUILD_INVITATIONS, [newInvite, ...invites]);
+    return { success: true };
+  }
+
+  public getUserGuildInvitations(userId: string): GuildInvitation[] {
+    const invites = this.getItem<GuildInvitation[]>(STORAGE_KEYS.GUILD_INVITATIONS, SEED_GUILD_INVITATIONS);
+    const guilds = this.getGuilds();
+    const users = this.getAllUsers();
+
+    return invites
+      .filter(i => i.invitee_user_id === userId && i.status === 'pending')
+      .map(i => ({
+        ...i,
+        guild: guilds.find(g => g.id === i.guild_id),
+        inviter: users.find(u => u.id === i.inviter_user_id),
+        invitee: users.find(u => u.id === i.invitee_user_id),
+      }));
+  }
+
+  public respondGuildInvitation(invitationId: string, accept: boolean): { success: boolean; error?: string } {
+    const user = this.getCurrentUser();
+    const invites = this.getItem<GuildInvitation[]>(STORAGE_KEYS.GUILD_INVITATIONS, SEED_GUILD_INVITATIONS);
+    const invite = invites.find(i => i.id === invitationId);
+
+    if (!invite) return { success: false, error: 'Invitation not found' };
+    if (invite.invitee_user_id !== user.id) return { success: false, error: 'Unauthorized to respond to this invitation' };
+
+    // Update invite status
+    const updatedInvites = invites.map(i => {
+      if (i.id !== invitationId) return i;
+      return {
+        ...i,
+        status: (accept ? 'accepted' : 'rejected') as 'accepted' | 'rejected',
+        responded_at: new Date().toISOString(),
+      };
+    });
+    this.setItem(STORAGE_KEYS.GUILD_INVITATIONS, updatedInvites);
+
+    if (accept) {
+      // Add member record
+      const members = this.getItem<GuildMember[]>(STORAGE_KEYS.GUILD_MEMBERS, SEED_GUILD_MEMBERS);
+      const newMember: GuildMember = {
+        id: `gm-${Date.now()}`,
+        guild_id: invite.guild_id,
+        user_id: user.id,
+        role: 'member',
+        status: 'active',
+        joined_at: new Date().toISOString(),
+      };
+      this.setItem(STORAGE_KEYS.GUILD_MEMBERS, [...members, newMember]);
+    }
+
+    return { success: true };
+  }
+
+  // ==============================================================================
+  // GUILD WARS ENGINE & STORAGE
+  // ==============================================================================
+
+  public getGuildWars(category?: GuildWarCategory, status?: GuildWarStatus): GuildWar[] {
+    const wars = this.getItem<GuildWar[]>(STORAGE_KEYS.GUILD_WARS, SEED_GUILD_WARS);
+    const guilds = this.getGuilds();
+
+    let filtered = wars.map(w => ({
+      ...w,
+      challenger_guild: guilds.find(g => g.id === w.challenger_guild_id),
+      opponent_guild: guilds.find(g => g.id === w.opponent_guild_id),
+    }));
+
+    if (category) {
+      filtered = filtered.filter(w => w.category === category);
+    }
+    if (status) {
+      filtered = filtered.filter(w => w.status === status);
+    }
+
+    return filtered;
+  }
+
+  public getGuildWarById(warId: string): GuildWar | undefined {
+    return this.getGuildWars().find(w => w.id === warId);
+  }
+
+  public getWarParticipants(warId: string): GuildWarParticipant[] {
+    const participants = this.getItem<GuildWarParticipant[]>(STORAGE_KEYS.WAR_PARTICIPANTS, SEED_WAR_PARTICIPANTS);
+    const users = this.getAllUsers();
+    return participants
+      .filter(p => p.guild_war_id === warId)
+      .map(p => ({ ...p, user: users.find(u => u.id === p.user_id) }));
+  }
+
+  public getWarContributions(warId: string): GuildWarContribution[] {
+    const contributions = this.getItem<GuildWarContribution[]>(STORAGE_KEYS.WAR_CONTRIBUTIONS, SEED_WAR_CONTRIBUTIONS);
+    const users = this.getAllUsers();
+    return contributions
+      .filter(c => c.guild_war_id === warId)
+      .map(c => ({ ...c, user: users.find(u => u.id === c.user_id) }));
+  }
+
+  public createGuildWarChallenge(data: {
+    challengerGuildId: string;
+    opponentGuildId: string;
+    category: GuildWarCategory;
+    durationDays: 7 | 30;
+  }): { success: boolean; war?: GuildWar; error?: string } {
+    const user = this.getCurrentUser();
+    const challenger = this.getGuildById(data.challengerGuildId);
+    const opponent = this.getGuildById(data.opponentGuildId);
+
+    if (!challenger || !opponent) return { success: false, error: 'One or both Guilds not found' };
+    if (challenger.captain_id !== user.id) return { success: false, error: 'Only the captain can challenge another Guild' };
+    if (challenger.id === opponent.id) return { success: false, error: 'A Guild cannot challenge itself' };
+
+    // Check duplicate active/pending challenge between same guilds
+    const existingWars = this.getGuildWars();
+    const hasActiveWar = existingWars.some(
+      w => (w.status === 'pending' || w.status === 'active') &&
+      ((w.challenger_guild_id === challenger.id && w.opponent_guild_id === opponent.id) ||
+       (w.challenger_guild_id === opponent.id && w.opponent_guild_id === challenger.id))
+    );
+    if (hasActiveWar) {
+      return { success: false, error: 'There is already a pending or active Guild War between these two teams.' };
+    }
+
+    const now = new Date();
+    const endsAt = new Date(now.getTime() + data.durationDays * 24 * 60 * 60 * 1000);
+
+    const newWar: GuildWar = {
+      id: `war-${Date.now()}`,
+      challenger_guild_id: challenger.id,
+      challenger_guild: challenger,
+      opponent_guild_id: opponent.id,
+      opponent_guild: opponent,
+      category: data.category,
+      status: 'pending',
+      duration_days: data.durationDays,
+      starts_at: now.toISOString(),
+      ends_at: endsAt.toISOString(),
+      scoring_policy_version: 'v1.0',
+      scoring_policy: DEFAULT_SCORING_POLICIES[data.category],
+      created_by: user.id,
+      challenger_raw_score: 0,
+      challenger_normalized_score: 0,
+      opponent_raw_score: 0,
+      opponent_normalized_score: 0,
+    };
+
+    const wars = this.getItem<GuildWar[]>(STORAGE_KEYS.GUILD_WARS, SEED_GUILD_WARS);
+    this.setItem(STORAGE_KEYS.GUILD_WARS, [newWar, ...wars]);
+
+    return { success: true, war: newWar };
+  }
+
+  public respondGuildWarChallenge(warId: string, accept: boolean): { success: boolean; error?: string } {
+    const user = this.getCurrentUser();
+    const wars = this.getItem<GuildWar[]>(STORAGE_KEYS.GUILD_WARS, SEED_GUILD_WARS);
+    const war = wars.find(w => w.id === warId);
+
+    if (!war) return { success: false, error: 'War challenge not found' };
+    const opponentGuild = this.getGuildById(war.opponent_guild_id);
+    if (!opponentGuild || opponentGuild.captain_id !== user.id) {
+      return { success: false, error: 'Only the opponent Guild captain can accept or reject this challenge' };
+    }
+
+    if (!accept) {
+      const updated = wars.map(w => w.id === warId ? { ...w, status: 'cancelled' as const } : w);
+      this.setItem(STORAGE_KEYS.GUILD_WARS, updated);
+      return { success: true };
+    }
+
+    // ACCEPT: Freeze the eligible roster for both guilds!
+    const challengerMembers = this.getGuildMembers(war.challenger_guild_id);
+    const opponentMembers = this.getGuildMembers(war.opponent_guild_id);
+
+    const frozenParticipants: GuildWarParticipant[] = [
+      ...challengerMembers.map(m => ({
+        id: `wp-${war.id}-${m.user_id}`,
+        guild_war_id: war.id,
+        guild_id: war.challenger_guild_id,
+        user_id: m.user_id,
+        is_eligible: true,
+        contribution_points: 0,
+        qualifying_count: 0,
+        weekly_bonus_earned: false,
+      })),
+      ...opponentMembers.map(m => ({
+        id: `wp-${war.id}-${m.user_id}`,
+        guild_war_id: war.id,
+        guild_id: war.opponent_guild_id,
+        user_id: m.user_id,
+        is_eligible: true,
+        contribution_points: 0,
+        qualifying_count: 0,
+        weekly_bonus_earned: false,
+      })),
+    ];
+
+    const currentParticipants = this.getItem<GuildWarParticipant[]>(STORAGE_KEYS.WAR_PARTICIPANTS, SEED_WAR_PARTICIPANTS);
+    this.setItem(STORAGE_KEYS.WAR_PARTICIPANTS, [...currentParticipants, ...frozenParticipants]);
+
+    const now = new Date();
+    const endsAt = new Date(now.getTime() + war.duration_days * 24 * 60 * 60 * 1000);
+
+    const updatedWars = wars.map(w => {
+      if (w.id !== warId) return w;
+      return {
+        ...w,
+        status: 'active' as const,
+        accepted_at: now.toISOString(),
+        roster_frozen_at: now.toISOString(),
+        starts_at: now.toISOString(),
+        ends_at: endsAt.toISOString(),
+      };
+    });
+
+    this.setItem(STORAGE_KEYS.GUILD_WARS, updatedWars);
+    return { success: true };
+  }
+
+  // Authoritative server-style finalization
+  public finalizeWar(warId: string): { success: boolean; resultWar?: GuildWar; error?: string } {
+    const war = this.getGuildWarById(warId);
+    if (!war) return { success: false, error: 'War not found' };
+
+    const contributions = this.getWarContributions(warId);
+    const participants = this.getWarParticipants(warId);
+
+    const { updatedWar, results } = finalizeGuildWar(war, contributions, participants);
+
+    // Persist finalized war
+    const allWars = this.getItem<GuildWar[]>(STORAGE_KEYS.GUILD_WARS, SEED_GUILD_WARS);
+    const updatedWars = allWars.map(w => w.id === warId ? updatedWar : w);
+    this.setItem(STORAGE_KEYS.GUILD_WARS, updatedWars);
+
+    // Update Guild stats (wins, total points)
+    const guilds = this.getGuilds().map(g => {
+      if (g.id === updatedWar.winner_guild_id) {
+        return {
+          ...g,
+          stats: {
+            ...g.stats,
+            total_wars: g.stats.total_wars + 1,
+            consistency_wins: updatedWar.category === 'consistency' ? g.stats.consistency_wins + 1 : g.stats.consistency_wins,
+            strength_wins: updatedWar.category === 'strength' ? g.stats.strength_wins + 1 : g.stats.strength_wins,
+            current_war_streak: g.stats.current_war_streak + 1,
+          }
+        };
+      } else if (g.id === updatedWar.challenger_guild_id || g.id === updatedWar.opponent_guild_id) {
+        return {
+          ...g,
+          stats: {
+            ...g.stats,
+            total_wars: g.stats.total_wars + 1,
+            current_war_streak: 0,
+          }
+        };
+      }
+      return g;
+    });
+    this.setItem(STORAGE_KEYS.GUILDS, guilds);
+
+    return { success: true, resultWar: updatedWar };
+  }
+
+  // Auto-evaluation hooks
+  private processWorkoutForActiveGuildWars(workout: Workout) {
+    const userGuilds = this.getUserGuilds(workout.user_id);
+    if (userGuilds.length === 0) return;
+
+    const activeWars = this.getGuildWars('consistency', 'active');
+    const contributions = this.getItem<GuildWarContribution[]>(STORAGE_KEYS.WAR_CONTRIBUTIONS, SEED_WAR_CONTRIBUTIONS);
+    const participants = this.getItem<GuildWarParticipant[]>(STORAGE_KEYS.WAR_PARTICIPANTS, SEED_WAR_PARTICIPANTS);
+    const wars = this.getItem<GuildWar[]>(STORAGE_KEYS.GUILD_WARS, SEED_GUILD_WARS);
+
+    let contributionsAdded = false;
+    const newContributions: GuildWarContribution[] = [...contributions];
+
+    userGuilds.forEach(guild => {
+      const war = activeWars.find(w => w.challenger_guild_id === guild.id || w.opponent_guild_id === guild.id);
+      if (!war) return;
+
+      const userParticipant = participants.find(p => p.guild_war_id === war.id && p.guild_id === guild.id && p.user_id === workout.user_id);
+      const isEligible = !!userParticipant?.is_eligible;
+
+      const userWarContribs = newContributions.filter(c => c.guild_war_id === war.id && c.user_id === workout.user_id);
+      const evaluation = evaluateWorkoutContribution(workout, war, userWarContribs, isEligible);
+
+      if (evaluation.qualifies) {
+        const newContrib: GuildWarContribution = {
+          id: `gwc-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+          guild_war_id: war.id,
+          guild_id: guild.id,
+          user_id: workout.user_id,
+          contribution_type: evaluation.isWeeklyBonus ? 'weekly_bonus' : 'workout',
+          source_id: workout.id,
+          awarded_points: evaluation.awardedPoints,
+          scoring_policy_version: war.scoring_policy_version,
+          recorded_at: new Date().toISOString(),
+          idempotency_key: evaluation.idempotencyKey,
+          metadata: { split: workout.split, duration_minutes: workout.duration_minutes },
+        };
+        newContributions.push(newContrib);
+        contributionsAdded = true;
+      }
+    });
+
+    if (contributionsAdded) {
+      this.setItem(STORAGE_KEYS.WAR_CONTRIBUTIONS, newContributions);
+
+      // Recompute and update scores for affected active wars
+      const updatedWars = wars.map(war => {
+        if (war.status !== 'active') return war;
+        const warParticipants = participants.filter(p => p.guild_war_id === war.id);
+        const warContribs = newContributions.filter(c => c.guild_war_id === war.id);
+        const scores = calculateGuildWarScores(war, warContribs, warParticipants);
+        return {
+          ...war,
+          challenger_raw_score: scores.challengerRaw,
+          challenger_normalized_score: scores.challengerNormalized,
+          opponent_raw_score: scores.opponentRaw,
+          opponent_normalized_score: scores.opponentNormalized,
+        };
+      });
+      this.setItem(STORAGE_KEYS.GUILD_WARS, updatedWars);
+    }
+  }
+
+  private processPRForActiveGuildWars(pr: PersonalRecord) {
+    const userGuilds = this.getUserGuilds(pr.user_id);
+    if (userGuilds.length === 0) return;
+
+    const activeWars = this.getGuildWars('strength', 'active');
+    const contributions = this.getItem<GuildWarContribution[]>(STORAGE_KEYS.WAR_CONTRIBUTIONS, SEED_WAR_CONTRIBUTIONS);
+    const participants = this.getItem<GuildWarParticipant[]>(STORAGE_KEYS.WAR_PARTICIPANTS, SEED_WAR_PARTICIPANTS);
+    const wars = this.getItem<GuildWar[]>(STORAGE_KEYS.GUILD_WARS, SEED_GUILD_WARS);
+
+    let contributionsAdded = false;
+    const newContributions: GuildWarContribution[] = [...contributions];
+
+    userGuilds.forEach(guild => {
+      const war = activeWars.find(w => w.challenger_guild_id === guild.id || w.opponent_guild_id === guild.id);
+      if (!war) return;
+
+      const userParticipant = participants.find(p => p.guild_war_id === war.id && p.guild_id === guild.id && p.user_id === pr.user_id);
+      const isEligible = !!userParticipant?.is_eligible;
+
+      const userWarContribs = newContributions.filter(c => c.guild_war_id === war.id && c.user_id === pr.user_id);
+      const evaluation = evaluatePRContribution(pr, war, userWarContribs, isEligible);
+
+      if (evaluation.qualifies) {
+        const newContrib: GuildWarContribution = {
+          id: `gwc-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+          guild_war_id: war.id,
+          guild_id: guild.id,
+          user_id: pr.user_id,
+          contribution_type: 'pr',
+          source_id: pr.id,
+          awarded_points: evaluation.awardedPoints,
+          scoring_policy_version: war.scoring_policy_version,
+          recorded_at: new Date().toISOString(),
+          idempotency_key: evaluation.idempotencyKey,
+          metadata: { exercise_name: pr.exercise_name, weight_kg: pr.weight_kg },
+        };
+        newContributions.push(newContrib);
+        contributionsAdded = true;
+      }
+    });
+
+    if (contributionsAdded) {
+      this.setItem(STORAGE_KEYS.WAR_CONTRIBUTIONS, newContributions);
+
+      // Recompute and update scores for affected active wars
+      const updatedWars = wars.map(war => {
+        if (war.status !== 'active') return war;
+        const warParticipants = participants.filter(p => p.guild_war_id === war.id);
+        const warContribs = newContributions.filter(c => c.guild_war_id === war.id);
+        const scores = calculateGuildWarScores(war, warContribs, warParticipants);
+        return {
+          ...war,
+          challenger_raw_score: scores.challengerRaw,
+          challenger_normalized_score: scores.challengerNormalized,
+          opponent_raw_score: scores.opponentRaw,
+          opponent_normalized_score: scores.opponentNormalized,
+        };
+      });
+      this.setItem(STORAGE_KEYS.GUILD_WARS, updatedWars);
+    }
   }
 
   // --- Bro Nudges ---
@@ -400,6 +1026,13 @@ class GymBroStore {
     localStorage.removeItem(STORAGE_KEYS.PRS);
     localStorage.removeItem(STORAGE_KEYS.SQUADS);
     localStorage.removeItem(STORAGE_KEYS.NUDGES);
+    localStorage.removeItem(STORAGE_KEYS.GUILDS);
+    localStorage.removeItem(STORAGE_KEYS.GUILD_MEMBERS);
+    localStorage.removeItem(STORAGE_KEYS.GUILD_INVITATIONS);
+    localStorage.removeItem(STORAGE_KEYS.GUILD_WARS);
+    localStorage.removeItem(STORAGE_KEYS.WAR_PARTICIPANTS);
+    localStorage.removeItem(STORAGE_KEYS.WAR_CONTRIBUTIONS);
+    localStorage.removeItem(STORAGE_KEYS.FRIENDSHIPS);
     this.init();
   }
 }

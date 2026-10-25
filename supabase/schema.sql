@@ -211,3 +211,147 @@ CREATE OR REPLACE TRIGGER on_auth_user_created
 -- Run in Supabase SQL editor:
 -- INSERT INTO storage.buckets (id, name, public) VALUES ('gymbro-media', 'gymbro-media', true);
 -- ==============================================================================
+
+-- ==============================================================================
+-- GUILDS & GUILD WARS SYSTEM (Migration 002)
+-- ==============================================================================
+
+-- 11. FRIENDSHIPS
+CREATE TABLE IF NOT EXISTS public.friendships (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+    friend_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+    status TEXT DEFAULT 'accepted' CHECK (status IN ('accepted', 'pending', 'rejected')) NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT unique_friendship UNIQUE (user_id, friend_id),
+    CONSTRAINT cannot_friend_self CHECK (user_id <> friend_id)
+);
+
+-- 12. GUILDS
+CREATE TABLE IF NOT EXISTS public.guilds (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name TEXT UNIQUE NOT NULL,
+    slug TEXT UNIQUE NOT NULL,
+    description TEXT,
+    emblem_url TEXT NOT NULL,
+    captain_id UUID REFERENCES public.profiles(id) ON DELETE RESTRICT NOT NULL,
+    invite_code TEXT UNIQUE NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 13. GUILD MEMBERS
+CREATE TABLE IF NOT EXISTS public.guild_members (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    guild_id UUID REFERENCES public.guilds(id) ON DELETE CASCADE NOT NULL,
+    user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+    role TEXT DEFAULT 'member' CHECK (role IN ('captain', 'member')) NOT NULL,
+    status TEXT DEFAULT 'active' CHECK (status IN ('active', 'inactive')) NOT NULL,
+    joined_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT unique_guild_member UNIQUE (guild_id, user_id)
+);
+
+-- 14. GUILD INVITATIONS
+CREATE TABLE IF NOT EXISTS public.guild_invitations (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    guild_id UUID REFERENCES public.guilds(id) ON DELETE CASCADE NOT NULL,
+    inviter_user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+    invitee_user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+    status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'rejected', 'expired')) NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    expires_at TIMESTAMPTZ NOT NULL,
+    responded_at TIMESTAMPTZ,
+    CONSTRAINT cannot_invite_self CHECK (inviter_user_id <> invitee_user_id)
+);
+
+-- 15. GUILD WARS
+CREATE TABLE IF NOT EXISTS public.guild_wars (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    challenger_guild_id UUID REFERENCES public.guilds(id) ON DELETE CASCADE NOT NULL,
+    opponent_guild_id UUID REFERENCES public.guilds(id) ON DELETE CASCADE NOT NULL,
+    category TEXT NOT NULL CHECK (category IN ('consistency', 'strength')),
+    status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'active', 'completed', 'cancelled')),
+    duration_days INT NOT NULL DEFAULT 7 CHECK (duration_days IN (7, 30)),
+    starts_at TIMESTAMPTZ NOT NULL,
+    ends_at TIMESTAMPTZ NOT NULL,
+    scoring_policy_version TEXT NOT NULL DEFAULT 'v1.0',
+    scoring_policy_snapshot JSONB NOT NULL,
+    created_by UUID REFERENCES public.profiles(id) NOT NULL,
+    accepted_at TIMESTAMPTZ,
+    completed_at TIMESTAMPTZ,
+    roster_frozen_at TIMESTAMPTZ,
+    challenger_raw_score NUMERIC(10, 2) DEFAULT 0,
+    challenger_normalized_score NUMERIC(10, 2) DEFAULT 0,
+    opponent_raw_score NUMERIC(10, 2) DEFAULT 0,
+    opponent_normalized_score NUMERIC(10, 2) DEFAULT 0,
+    winner_guild_id UUID REFERENCES public.guilds(id) ON DELETE SET NULL,
+    CONSTRAINT distinct_guilds CHECK (challenger_guild_id <> opponent_guild_id)
+);
+
+-- 16. GUILD WAR PARTICIPANTS
+CREATE TABLE IF NOT EXISTS public.guild_war_participants (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    guild_war_id UUID REFERENCES public.guild_wars(id) ON DELETE CASCADE NOT NULL,
+    guild_id UUID REFERENCES public.guilds(id) ON DELETE CASCADE NOT NULL,
+    user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+    is_eligible BOOLEAN DEFAULT TRUE NOT NULL,
+    contribution_points NUMERIC(10, 2) DEFAULT 0 NOT NULL,
+    qualifying_count INT DEFAULT 0 NOT NULL,
+    weekly_bonus_earned BOOLEAN DEFAULT FALSE NOT NULL,
+    CONSTRAINT unique_war_participant UNIQUE (guild_war_id, guild_id, user_id)
+);
+
+-- 17. GUILD WAR CONTRIBUTIONS
+CREATE TABLE IF NOT EXISTS public.guild_war_contributions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    guild_war_id UUID REFERENCES public.guild_wars(id) ON DELETE CASCADE NOT NULL,
+    guild_id UUID REFERENCES public.guilds(id) ON DELETE CASCADE NOT NULL,
+    user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+    contribution_type TEXT NOT NULL CHECK (contribution_type IN ('workout', 'pr', 'weekly_bonus')),
+    source_id TEXT NOT NULL,
+    awarded_points NUMERIC(6, 2) NOT NULL,
+    scoring_policy_version TEXT NOT NULL DEFAULT 'v1.0',
+    recorded_at TIMESTAMPTZ DEFAULT NOW(),
+    idempotency_key TEXT UNIQUE NOT NULL,
+    metadata JSONB
+);
+
+-- 18. GUILD WAR RESULTS
+CREATE TABLE IF NOT EXISTS public.guild_war_results (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    guild_war_id UUID REFERENCES public.guild_wars(id) ON DELETE CASCADE NOT NULL,
+    guild_id UUID REFERENCES public.guilds(id) ON DELETE CASCADE NOT NULL,
+    raw_score NUMERIC(10, 2) NOT NULL,
+    normalized_score NUMERIC(10, 2) NOT NULL,
+    eligible_members_count INT NOT NULL,
+    participating_members_count INT NOT NULL,
+    participation_rate NUMERIC(5, 4) NOT NULL,
+    final_rank INT NOT NULL,
+    is_winner BOOLEAN NOT NULL,
+    finalized_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT unique_war_guild_result UNIQUE (guild_war_id, guild_id)
+);
+
+ALTER TABLE public.friendships ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.guilds ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.guild_members ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.guild_invitations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.guild_wars ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.guild_war_participants ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.guild_war_contributions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.guild_war_results ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view own friendships" ON public.friendships FOR SELECT USING (auth.uid() = user_id OR auth.uid() = friend_id);
+CREATE POLICY "Users can manage own friendships" ON public.friendships FOR ALL USING (auth.uid() = user_id);
+CREATE POLICY "Guilds are viewable by all" ON public.guilds FOR SELECT USING (true);
+CREATE POLICY "Captains can create guilds" ON public.guilds FOR INSERT WITH CHECK (auth.uid() = captain_id);
+CREATE POLICY "Captains can update own guild" ON public.guilds FOR UPDATE USING (auth.uid() = captain_id);
+CREATE POLICY "Guild members viewable by all" ON public.guild_members FOR SELECT USING (true);
+CREATE POLICY "Invitations viewable by sender or recipient" ON public.guild_invitations FOR SELECT USING (auth.uid() = inviter_user_id OR auth.uid() = invitee_user_id);
+CREATE POLICY "Captains can create invitations" ON public.guild_invitations FOR INSERT WITH CHECK (auth.uid() = inviter_user_id);
+CREATE POLICY "Invitees can respond to invitations" ON public.guild_invitations FOR UPDATE USING (auth.uid() = invitee_user_id);
+CREATE POLICY "Guild wars viewable by all" ON public.guild_wars FOR SELECT USING (true);
+CREATE POLICY "Participants viewable by all" ON public.guild_war_participants FOR SELECT USING (true);
+CREATE POLICY "Contributions viewable by all" ON public.guild_war_contributions FOR SELECT USING (true);
+CREATE POLICY "Results viewable by all" ON public.guild_war_results FOR SELECT USING (true);
+

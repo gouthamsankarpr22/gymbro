@@ -49,7 +49,33 @@ GymBro is **NOT** just a cold workout log. It is an authentic, hype-filled socia
 - **Split Distribution Pie Chart**: Visual breakdown of Push vs Pull vs Legs vs Upper/Lower ratios.
 - **Hometown Gym vs Current Gym**: Keeps the memory of where the brotherhood started alive while tracking distant progress.
 
-### 6. 🔄 Instant Persona Switcher
+### 6. 🛡️ Guilds & Guild Wars System (Team Brotherhood & Cross-City Rivalries)
+- **Private Brotherhood Guilds**:
+  - Form private teams restricted strictly to **accepted GymBro friends**.
+  - Creators automatically become **Guild Captains** with management rights.
+  - Safe captaincy handoff: Captains cannot abandon a multi-member Guild without transferring captaincy to another member.
+  - 5-Tab Dedicated Guild Detail: **Overview**, **Members**, **Guild Wars**, **Leaderboards**, and **History & Hall of Fame**.
+- **Two Distinct Competition Categories**:
+  - 🏃 **Workout Consistency War**:
+    - **10 points** per qualifying completed workout session ($\ge 30$ minutes).
+    - **Daily cap**: 1 workout per member per calendar day (prevents unhealthy or duplicate session spam).
+    - **Weekly consistency bonus**: **+20 points** upon achieving the 4-workout/week milestone.
+  - 💥 **Strength & PR War**:
+    - **5 points** per verified new PR.
+    - Requires $\ge 1.0$ kg progression over member's previous verified personal best.
+    - Anti-farming protection: 1 PR award per distinct exercise per member per war.
+- **Fair Normalization Formula for Flexible Team Sizes**:
+  - Roster is **frozen** at war acceptance (`roster_frozen_at`).
+  - Score formula: $\text{Normalized Score} = \frac{\text{Total Qualifying Points}}{\text{Eligible Members in Frozen Roster}}$.
+  - Both raw points and normalized scores are displayed transparently.
+  - Deterministic tie-breaking: **Normalized Score** $\rightarrow$ **Participation Rate** $\rightarrow$ **Raw Points**.
+- **Permanent Persistence Architecture**:
+  - GymBro's 24-hour social feed expiration **never** erases workouts, PRs, or earned Guild War points.
+  - Contributions are recorded with immutable idempotency keys (`war_{warId}_workout_{workoutId}`).
+- **War VS Arena Dashboard**:
+  - Split-screen head-to-head arena with countdown timer, normalized score meters, formula explanation, real-time activity log, and individual member contribution leaderboards.
+
+### 7. 🔄 Instant Persona Switcher
 - Effortlessly switch between 5 authentic gym personas right from the header dropdown to test the app from any perspective:
   1. **Alex Rivera** (@alex_lifts) — Junior at Penn State (380 miles away), chasing a 315 bench.
   2. **Marcus Chen** (@marcus_quads) — Software Dev in Austin (1,150 miles away), squat specialist.
@@ -147,34 +173,68 @@ GymBro is ready for 1-click deployment on Vercel:
 d:/Gymbro
 ├── src/
 │   ├── app/
-│   │   ├── globals.css           # Dark gym aesthetic, glow classes, custom scrollbar
-│   │   ├── layout.tsx            # HTML structure, SEO metadata, fonts & viewport
-│   │   └── page.tsx              # Root coordinator & orchestrator for all views
+│   │   ├── globals.css              # Dark gym aesthetic, glow classes, custom scrollbar
+│   │   ├── layout.tsx               # HTML structure, SEO metadata, fonts & viewport
+│   │   └── page.tsx                 # Root coordinator & orchestrator for all views & Guilds
 │   ├── components/
-│   │   ├── Navbar.tsx            # Header, squad picker, streak badge, user persona switcher
-│   │   ├── BroFeed.tsx           # Social chalkboard, workout cards, fist bumps, comments
-│   │   ├── PRBoard.tsx           # The Iron Wall, Big 3 leaderboard, Recharts line graph
-│   │   ├── WorkoutLoggerModal.tsx# Workout session logger with dynamic sets & PR flag
-│   │   ├── AddPRModal.tsx        # Dedicated PR recorder with 1RM calculator
-│   │   ├── SquadRadar.tsx        # "Spot Your Bro" live radar, distance tracker, nudges
-│   │   ├── LockerRoomMemes.tsx   # Gym memes gallery & banter creator
-│   │   ├── ProfileView.tsx       # User profile stats, weekly volume & split charts
-│   │   └── SupabaseConfigModal.tsx # Supabase connection tester, schema viewer, data reset
+│   │   ├── Navbar.tsx               # Header, squad picker, streak badge, Guilds & Wars link
+│   │   ├── GuildsHall.tsx           # Master Guild Hall hub (My Guilds, Live Wars, Directory)
+│   │   ├── GuildDetailView.tsx      # 5-Tab view: Overview, Members, Wars, Leaderboards, History
+│   │   ├── GuildWarDashboard.tsx    # Head-to-head VS Arena dashboard with normalized scores
+│   │   ├── CreateGuildModal.tsx     # Guild creation modal with emblem picker & validations
+│   │   ├── CreateWarChallengeModal.tsx # Captain challenge declaration (7d/30d, Consistency/Strength)
+│   │   ├── InviteFriendModal.tsx    # Friends-only invitation modal
+│   │   ├── BroFeed.tsx              # Social chalkboard, workout cards, fist bumps, comments
+│   │   ├── PRBoard.tsx              # The Iron Wall, Big 3 leaderboard, Recharts line graph
+│   │   ├── WorkoutLoggerModal.tsx   # Workout session logger with dynamic sets & PR flag
+│   │   ├── AddPRModal.tsx           # Dedicated PR recorder with 1RM calculator
+│   │   ├── SquadRadar.tsx           # "Spot Your Bro" live radar, distance tracker, nudges
+│   │   ├── LockerRoomMemes.tsx      # Gym memes gallery & banter creator
+│   │   ├── ProfileView.tsx          # User profile stats, weekly volume & split charts
+│   │   └── SupabaseConfigModal.tsx  # Supabase connection tester, schema viewer, data reset
 │   ├── lib/
-│   │   ├── seed-data.ts          # Authentic gym bros, workouts, PRs, and meme data
-│   │   ├── storage.ts            # Local + Supabase synchronization store
-│   │   ├── utils.ts              # 1RM formula, weight conversions (kg/lbs), confetti
+│   │   ├── scoring-engine.ts        # Authoritative scoring, validation, and fair normalization
+│   │   ├── __tests__/
+│   │   │   └── scoring-engine.test.ts # 10 comprehensive unit tests with Vitest
+│   │   ├── seed-data.ts             # Authentic gym bros, workouts, PRs, and meme data
+│   │   ├── seed-guilds.ts           # Sample Guilds, active wars, history, and friendships
+│   │   ├── storage.ts               # Local + Supabase synchronization store with RLS compliance
+│   │   ├── utils.ts                 # 1RM formula, weight conversions (kg/lbs), confetti
 │   │   └── supabase/
-│   │       └── client.ts         # Supabase client initialization with graceful fallback
+│   │       └── client.ts            # Supabase client initialization with graceful fallback
 │   └── types/
-│       └── index.ts              # Complete TypeScript interfaces
+│       └── index.ts                 # Complete TypeScript interfaces for app & Guild Wars
 ├── supabase/
-│   └── schema.sql                # Production-ready PostgreSQL schema & RLS policies
-├── .env.example                  # Environment variables template
-├── package.json
+│   ├── schema.sql                   # Full PostgreSQL schema with RLS policies
+│   └── migrations/
+│       └── 002_guilds_and_guild_wars.sql # Dedicated migration for Guilds & Wars tables and RLS
+├── .env.example                     # Environment variables template
+├── package.json                     # Scripts (dev, build, test via Vitest)
 ├── tsconfig.json
 └── README.md
 ```
+
+---
+
+## 🧪 Automated Testing
+
+GymBro includes automated unit tests for the **Scoring & Normalization Engine**:
+
+```bash
+# Run all Vitest unit tests
+npm test
+# or
+npx vitest run
+```
+
+Tests cover:
+- Qualifying workout minimum durations ($\ge 30$ mins) and daily scoring caps (1 workout/day)
+- Idempotent scoring preventing duplicate point awards
+- Weekly 4-workout milestone bonus (+20 pts)
+- Strength & PR progression threshold ($\ge 1.0$ kg) and anti-farming per-exercise caps
+- Roster freeze Denominator immutability across flexible team sizes
+- Deterministic tie-breaking rules
+- War finalization and stats mutation
 
 ---
 
