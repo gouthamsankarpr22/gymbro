@@ -59,7 +59,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   const activeSquad = squads.find((s) => s.id === activeSquadId);
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-zinc-800/80 bg-zinc-950/85 backdrop-blur-md">
+    <header className="sticky top-0 z-40 w-full border-b border-zinc-800/80 bg-zinc-950/85 backdrop-blur-md pt-[env(safe-area-inset-top,0px)]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo & Brand */}
@@ -370,61 +370,6 @@ export const Navbar: React.FC<NavbarProps> = ({
               )}
             </div>
           </div>
-        </div>
-
-        {/* Mobile Navigation Tabs */}
-        <div className="flex lg:hidden overflow-x-auto py-2.5 space-x-2 border-t border-zinc-800/50 scrollbar-none">
-          <button
-            onClick={() => setActiveTab('feed')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition ${
-              activeTab === 'feed' ? 'bg-zinc-800 text-white' : 'text-zinc-400 hover:text-white'
-            }`}
-          >
-            The Chalkboard
-          </button>
-          <button
-            onClick={() => setActiveTab('guilds')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition flex items-center gap-1 ${
-              activeTab === 'guilds' ? 'bg-zinc-800 text-white ring-1 ring-emerald-500/40' : 'text-zinc-400 hover:text-white'
-            }`}
-          >
-            <Shield className="w-3.5 h-3.5 text-emerald-400" />
-            Guilds
-          </button>
-          <button
-            onClick={() => setActiveTab('prs')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition flex items-center gap-1 ${
-              activeTab === 'prs' ? 'bg-zinc-800 text-white' : 'text-zinc-400 hover:text-white'
-            }`}
-          >
-            <Award className="w-3.5 h-3.5 text-amber-400" />
-            Iron Wall
-          </button>
-          <button
-            onClick={() => setActiveTab('radar')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition flex items-center gap-1 ${
-              activeTab === 'radar' ? 'bg-zinc-800 text-white' : 'text-zinc-400 hover:text-white'
-            }`}
-          >
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-            Spot Bro
-          </button>
-          <button
-            onClick={() => setActiveTab('memes')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition ${
-              activeTab === 'memes' ? 'bg-zinc-800 text-white' : 'text-zinc-400 hover:text-white'
-            }`}
-          >
-            Locker Room
-          </button>
-          <button
-            onClick={() => setActiveTab('profile')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition ${
-              activeTab === 'profile' ? 'bg-zinc-800 text-white' : 'text-zinc-400 hover:text-white'
-            }`}
-          >
-            My Stats
-          </button>
         </div>
       </div>
     </header>

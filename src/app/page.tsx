@@ -11,6 +11,11 @@ import { WorkoutLoggerModal } from '@/components/WorkoutLoggerModal';
 import { AddPRModal } from '@/components/AddPRModal';
 import { SupabaseConfigModal } from '@/components/SupabaseConfigModal';
 
+// Mobile App Shell Components
+import { MobileBottomNav } from '@/components/MobileBottomNav';
+import { PWAInstallPrompt } from '@/components/PWAInstallPrompt';
+import { registerServiceWorker } from '@/lib/mobile-utils';
+
 // Guilds & Guild Wars Components
 import { GuildsHall } from '@/components/GuildsHall';
 import { GuildDetailView } from '@/components/GuildDetailView';
@@ -70,10 +75,24 @@ export default function Home() {
   const [isAddPROpen, setIsAddPROpen] = useState(false);
   const [isSupabaseModalOpen, setIsSupabaseModalOpen] = useState(false);
 
-  // Initialize store and sync persisted data on client
+  // Initialize store, service worker, and sync persisted data on client
   useEffect(() => {
     gymBroStore.init();
     refreshAllData();
+    registerServiceWorker();
+
+    // Check for PWA shortcuts or deep links in URL
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const action = params.get('action');
+      const tab = params.get('tab');
+      if (action === 'log') {
+        setIsLogWorkoutOpen(true);
+      }
+      if (tab && ['feed', 'prs', 'guilds', 'radar', 'memes', 'profile'].includes(tab)) {
+        setActiveTab(tab as 'feed' | 'prs' | 'guilds' | 'radar' | 'memes' | 'profile');
+      }
+    }
   }, []);
 
   const refreshAllData = () => {
@@ -284,7 +303,7 @@ export default function Home() {
       />
 
       {/* Main App Layout */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-28 lg:pb-8">
         {isGuildSubView ? (
           /* Full-width view for Guild Detail & War Dashboard */
           <div className="w-full">
@@ -645,6 +664,19 @@ export default function Home() {
         isOpen={isSupabaseModalOpen}
         onClose={() => setIsSupabaseModalOpen(false)}
         onResetData={handleResetData}
+      />
+
+      {/* PWA Home Screen Installation Prompt */}
+      <PWAInstallPrompt />
+
+      {/* Native Mobile Bottom Navigation Bar */}
+      <MobileBottomNav
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        onOpenLogWorkout={() => setIsLogWorkoutOpen(true)}
+        hasActiveWar={guildWars.some((w) => w.status === 'active')}
+        pendingNudgesCount={nudges.filter((n) => n.to_user_id === currentUser.id && n.status === 'pending').length}
+        currentUser={currentUser}
       />
     </div>
   );

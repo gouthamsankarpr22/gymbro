@@ -17,11 +17,24 @@ export const metadata: Metadata = {
   description: "Stay connected with your gym partners separated by college, distance, and work. Daily workout updates, PR milestones, memes, and brotherhood motivation.",
   keywords: ["gym", "fitness", "workout partner", "social fitness", "personal records", "lifting squad"],
   authors: [{ name: "GymBro Team" }],
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "GymBro",
+  },
+  icons: {
+    icon: "/icons/icon.svg",
+    apple: "/icons/icon.svg",
+  },
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: "cover",
   themeColor: "#090d16",
 };
 

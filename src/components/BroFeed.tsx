@@ -24,6 +24,7 @@ import {
   Sparkles
 } from 'lucide-react';
 import { formatWeight, getSplitBadgeColor, triggerPRConfetti } from '@/lib/utils';
+import { triggerHaptic, shareGymBroContent } from '@/lib/mobile-utils';
 
 interface BroFeedProps {
   posts: FeedPost[];
@@ -434,6 +435,7 @@ export const BroFeed: React.FC<BroFeedProps> = ({
                         <button
                           key={reaction}
                           onClick={() => {
+                            triggerHaptic('light');
                             onToggleReaction(post.id, reaction);
                             if (reaction === 'fire' || reaction === 'hype') {
                               triggerPRConfetti();
@@ -461,6 +463,18 @@ export const BroFeed: React.FC<BroFeedProps> = ({
                     >
                       <MessageSquare className="w-3.5 h-3.5" />
                       <span>{post.comments_count || 0} Comments</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        shareGymBroContent({
+                          title: 'GymBro Workout Post',
+                          text: `${post.user.full_name} on GymBro: "${post.content}"`,
+                        });
+                      }}
+                      className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition"
+                      title="Share Post"
+                    >
+                      <Share2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 </div>

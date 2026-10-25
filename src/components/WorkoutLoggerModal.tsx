@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { SplitType, WorkoutExercise } from '@/types';
 import { formatWeight, triggerPRConfetti } from '@/lib/utils';
+import { triggerHaptic } from '@/lib/mobile-utils';
 
 interface WorkoutLoggerModalProps {
   isOpen: boolean;
@@ -139,17 +140,21 @@ export const WorkoutLoggerModal: React.FC<WorkoutLoggerModalProps> = ({
       squad_id: activeSquadId === 'all' ? undefined : activeSquadId,
     });
 
+    triggerHaptic('success');
     onClose();
   };
 
   const SPLITS: SplitType[] = ['Push', 'Pull', 'Legs', 'Upper', 'Lower', 'Arms', 'Full Body', 'Cardio'];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/80 backdrop-blur-sm overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-zinc-950/80 backdrop-blur-sm overflow-y-auto">
       <div 
-        className="w-full max-w-2xl bg-zinc-900 border border-zinc-800 rounded-3xl shadow-2xl p-6 relative my-8"
+        className="w-full max-w-2xl bg-zinc-900 border border-zinc-800 rounded-t-3xl sm:rounded-3xl shadow-2xl p-5 sm:p-6 relative max-sm:max-h-[88vh] overflow-y-auto my-0 sm:my-8 animate-slide-up"
         onClick={(e) => e.stopPropagation()}
       >
+        {/* Mobile Swipe / Drag Handle */}
+        <div className="w-12 h-1.5 bg-zinc-700/80 rounded-full mx-auto -mt-1 mb-4 sm:hidden" />
+
         {/* Header */}
         <div className="flex items-center justify-between pb-4 border-b border-zinc-800">
           <div className="flex items-center space-x-3">

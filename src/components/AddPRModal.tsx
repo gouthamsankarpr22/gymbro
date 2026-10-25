@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { X, Trophy, Sparkles, Scale, MessageSquare, Image as ImageIcon } from 'lucide-react';
 import { formatWeight, calculateOneRepMax, triggerPRConfetti } from '@/lib/utils';
+import { triggerHaptic } from '@/lib/mobile-utils';
 
 interface AddPRModalProps {
   isOpen: boolean;
@@ -35,6 +36,7 @@ export const AddPRModal: React.FC<AddPRModalProps> = ({
     e.preventDefault();
     if (!exerciseName.trim() || weightKg <= 0 || reps <= 0) return;
 
+    triggerHaptic('heavy');
     triggerPRConfetti();
 
     onSavePR({
@@ -49,11 +51,14 @@ export const AddPRModal: React.FC<AddPRModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/80 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-zinc-950/80 backdrop-blur-sm">
       <div 
-        className="w-full max-w-lg bg-zinc-900 border border-zinc-800 rounded-3xl shadow-2xl p-6 relative"
+        className="w-full max-w-lg bg-zinc-900 border border-zinc-800 rounded-t-3xl sm:rounded-3xl shadow-2xl p-5 sm:p-6 relative max-sm:max-h-[90vh] overflow-y-auto animate-slide-up"
         onClick={(e) => e.stopPropagation()}
       >
+        {/* Mobile Swipe / Drag Handle */}
+        <div className="w-12 h-1.5 bg-zinc-700/80 rounded-full mx-auto -mt-1 mb-4 sm:hidden" />
+
         <div className="flex items-center justify-between pb-4 border-b border-zinc-800">
           <div className="flex items-center space-x-3">
             <div className="p-2.5 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-400">

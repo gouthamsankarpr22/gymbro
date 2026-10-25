@@ -238,6 +238,66 @@ Tests cover:
 
 ---
 
+## 📱 Mobile App Experience & Capacitor Workflow
+
+GymBro is fully configured as a **dual-mode mobile application**: an installable **Progressive Web App (PWA)** for instant browser-to-homescreen installation and an **Ionic Capacitor** native project ready for compilation into native Android APKs and iOS apps.
+
+### 🌟 Mobile Features
+- **Native Mobile Bottom Navigation Bar**: Fixed to the bottom with safe area insets (`env(safe-area-inset-bottom)`), providing 1-tap switching between The Chalkboard (Feed), Guilds & Wars, The Iron Wall (PRs), and Bro Hub (Radar/Memes/Stats).
+- **Center Elevated Floating Action Button (FAB)**: A glowing emerald `+` button positioned right at the thumb's reach for instant workout logging.
+- **Mobile Bottom Sheets**: Modals (Workout Logger, Hit a PR, Create Guild) transform into native-feeling slide-up bottom sheets with touch drag handles.
+- **Vibration & Haptics API**: Real haptic pulse feedback (`navigator.vibrate`) on workout saves, PR smashes, and fist bump reactions.
+- **PWA Standalone Mode**: Web App Manifest (`/manifest.json`), service worker shell caching (`/sw.js`), and portrait lock.
+- **Deep-link Shortcuts**: Home screen app shortcuts for "Log Workout", "Guild Wars", and "Iron Wall PRs".
+
+### 📲 1. Installing as a Mobile App (PWA)
+#### On iPhone / iPad (iOS Safari)
+1. Open GymBro in Safari.
+2. Tap the **Share** button (`⎋`) at the bottom of the screen.
+3. Scroll down and tap **Add to Home Screen** (`➕`).
+4. Launch GymBro directly from your home screen as a full-screen, standalone mobile app without browser address bars!
+
+#### On Android (Chrome / Brave / Edge)
+1. Open GymBro in Chrome.
+2. Tap the **"Install GymBro App"** banner at the top, or tap the three dots (`⋮`) $\rightarrow$ **Install app** / **Add to Home screen**.
+3. GymBro installs directly into your Android app drawer with native notification and standalone capabilities.
+
+---
+
+### 🤖 2. Building Native Android APK & iOS Apps (Capacitor)
+
+The repository includes a ready-to-build native **Android** project in the `android/` directory:
+
+```bash
+# 1. Sync web assets into native Android project
+npm run cap:sync
+
+# 2. Open project in Android Studio to build APK or run on emulator / connected phone
+npm run cap:android
+```
+
+#### For iOS (macOS / Xcode):
+```bash
+# Add native iOS platform (requires macOS with Xcode)
+npm run cap:add:ios
+
+# Sync and open in Xcode
+npm run cap:sync
+npm run cap:ios
+```
+
+#### Live Reload on Android Emulator / Physical Device:
+In `capacitor.config.ts`, uncomment the `server.url` line and point to your local development server IP:
+```ts
+server: {
+  url: 'http://10.0.2.2:3000', // Android emulator
+  // or 'http://192.168.1.X:3000' for physical devices on your local Wi-Fi
+  cleartext: true,
+}
+```
+
+---
+
 ## 👊 The Brotherhood Promise
 
 Whether separated by 50 miles or 3,000 miles, **GymBro** ensures that no set is taken alone, no PR goes uncelebrated, and no bro skips leg day unnoticed!
