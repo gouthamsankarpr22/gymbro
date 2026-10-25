@@ -229,16 +229,18 @@ class GymBroStore {
     this.setCurrentUser(newUser);
     this.setItem(STORAGE_KEYS.AUTH_SESSION, true);
 
-    // Auto-befriend initial seed users so new user immediately has GymBro friends to invite to Guilds
-    const friendships = this.getItem<Friendship[]>(STORAGE_KEYS.FRIENDSHIPS, SEED_FRIENDSHIPS);
-    const newFriendships: Friendship[] = SEED_USERS.map((su, idx) => ({
-      id: `friend-${Date.now()}-${idx}`,
-      user_id: newUser.id,
-      friend_id: su.id,
-      status: 'accepted' as const,
-      created_at: new Date().toISOString(),
-    }));
-    this.setItem(STORAGE_KEYS.FRIENDSHIPS, [...newFriendships, ...friendships]);
+    // Create a personal starter squad for the new lifter and their friends
+    const squads = this.getSquads();
+    const personalSquad: Squad = {
+      id: `squad-${Date.now()}`,
+      name: `${fullName.split(' ')[0]}'s Iron Circle`,
+      description: `Training circle for ${fullName} and gym partners.`,
+      avatar_url: newUser.avatar_url,
+      member_count: 1,
+      created_by: newUser.id,
+      invite_code: `BRO-${Math.floor(1000 + Math.random() * 9000)}`,
+    };
+    this.setItem(STORAGE_KEYS.SQUADS, [personalSquad, ...squads]);
 
     return { success: true, user: newUser };
   }
@@ -307,12 +309,21 @@ class GymBroStore {
   }
 
   // --- Feed Posts ---
-  public getFeedPosts(squadId?: string): FeedPost[] {
+  public getFeedPosts(squadId?: string, showDemo = false): FeedPost[] {
     const posts = this.getItem<FeedPost[]>(STORAGE_KEYS.POSTS, SEED_POSTS);
-    if (squadId && squadId !== 'all') {
-      return posts.filter((p) => p.squad_id === squadId);
+    const currentUser = this.getCurrentUser();
+    const isSeedUser = SEED_USERS.some(u => u.id === currentUser.id);
+
+    let filtered = posts;
+    // For real registered users, do not show fake demo posts unless explicitly requested
+    if (!isSeedUser && !showDemo) {
+      filtered = posts.filter((p) => !p.is_demo);
     }
-    return posts;
+
+    if (squadId && squadId !== 'all') {
+      filtered = filtered.filter((p) => p.squad_id === squadId);
+    }
+    return filtered;
   }
 
   public createFeedPost(data: {

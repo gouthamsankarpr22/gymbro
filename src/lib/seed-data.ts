@@ -188,6 +188,7 @@ export const SEED_POSTS: FeedPost[] = [
     user_reactions: ['fist_bump', 'fire'],
     comments_count: 3,
     created_at: '2 hours ago',
+    is_demo: true,
     comments: [
       {
         id: 'c-1',
@@ -246,6 +247,7 @@ export const SEED_POSTS: FeedPost[] = [
     user_reactions: ['fist_bump', 'skull'],
     comments_count: 2,
     created_at: '5 hours ago',
+    is_demo: true,
     comments: [
       {
         id: 'c-4',
@@ -270,6 +272,7 @@ export const SEED_POSTS: FeedPost[] = [
     user_reactions: ['skull'],
     comments_count: 2,
     created_at: '8 hours ago',
+    is_demo: true,
     comments: [
       {
         id: 'c-5',
@@ -311,6 +314,7 @@ export const SEED_POSTS: FeedPost[] = [
     user_reactions: ['fist_bump', 'hype'],
     comments_count: 1,
     created_at: '11 hours ago',
+    is_demo: true,
     comments: [
       {
         id: 'c-6',

@@ -103,7 +103,7 @@ export const SquadRadar: React.FC<SquadRadarProps> = ({
       )}
 
       {/* Radar Header */}
-      <div className="p-5 rounded-2xl bg-gradient-to-r from-zinc-900 via-zinc-900 to-zinc-950 border border-zinc-800 shadow-xl relative overflow-hidden">
+      <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-zinc-900 via-zinc-900 to-zinc-950 border border-zinc-800 shadow-xl relative overflow-hidden">
         <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
@@ -114,10 +114,10 @@ export const SquadRadar: React.FC<SquadRadarProps> = ({
               </span>
               <span className="text-xs text-zinc-400">Live Distance Accountability</span>
             </div>
-            <h1 className="text-2xl font-black text-white">
+            <h1 className="text-xl sm:text-2xl font-black text-white">
               No Bro Left Behind Across The Map
             </h1>
-            <p className="text-xs sm:text-sm text-zinc-400 mt-1 max-w-xl">
+            <p className="text-xs sm:text-sm text-zinc-400 mt-1 max-w-xl leading-relaxed">
               See who is grinding today, who is taking a rest day, and send an instant "Bro Nudge" to partners whose streak is slipping!
             </p>
           </div>
@@ -142,7 +142,7 @@ export const SquadRadar: React.FC<SquadRadarProps> = ({
           return (
             <div
               key={user.id}
-              className={`p-5 rounded-2xl bg-zinc-900/90 border transition-all duration-200 shadow-lg flex flex-col justify-between ${
+              className={`p-4 sm:p-5 rounded-2xl bg-zinc-900/90 border transition-all duration-200 shadow-lg flex flex-col justify-between ${
                 isCurrentUser
                   ? 'border-emerald-500/50 shadow-emerald-500/5 ring-1 ring-emerald-500/30'
                   : 'border-zinc-800 hover:border-zinc-700'

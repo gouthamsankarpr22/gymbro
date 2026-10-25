@@ -65,7 +65,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
           />
 
           {/* Drawer Sheet */}
-          <div className="relative bg-zinc-900 border-t border-zinc-800 rounded-t-3xl p-5 pb-8 space-y-4 shadow-2xl animate-slide-up">
+          <div className="relative bg-zinc-900 border-t border-zinc-800 rounded-t-3xl p-4 sm:p-5 pb-[max(env(safe-area-inset-bottom,0px),2rem)] space-y-4 shadow-2xl animate-slide-up">
             <div className="flex items-center justify-between pb-3 border-b border-zinc-800">
               <div className="flex items-center space-x-2.5">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -154,7 +154,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
       {/* Fixed Bottom Navigation Shell */}
       <nav 
         aria-label="Mobile Navigation"
-        className="fixed bottom-0 inset-x-0 z-40 lg:hidden bg-zinc-950/95 backdrop-blur-xl border-t border-zinc-800/90 pb-[max(env(safe-area-inset-bottom),10px)] pt-1.5 px-3 shadow-[0_-8px_25px_rgba(0,0,0,0.6)]"
+        className="fixed bottom-0 inset-x-0 z-40 lg:hidden bg-zinc-950/95 backdrop-blur-xl border-t border-zinc-800/90 pb-[max(env(safe-area-inset-bottom,0px),10px)] pt-1.5 px-2 sm:px-3 shadow-[0_-8px_25px_rgba(0,0,0,0.6)]"
       >
         <div className="max-w-md mx-auto grid grid-cols-5 items-center">
           {/* Tab 1: Feed (The Chalkboard) */}
@@ -199,9 +199,9 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
               onClick={handleOpenFab}
               title="Log Workout Session"
               aria-label="Log Workout"
-              className="w-13 h-13 rounded-2xl bg-gradient-to-tr from-emerald-600 via-emerald-500 to-emerald-400 text-zinc-950 flex items-center justify-center shadow-lg shadow-emerald-500/40 ring-4 ring-zinc-950 active:scale-90 transition-transform cursor-pointer"
+              className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-emerald-600 via-emerald-500 to-emerald-400 text-zinc-950 flex items-center justify-center shadow-lg shadow-emerald-500/40 ring-4 ring-zinc-950 active:scale-90 transition-transform cursor-pointer"
             >
-              <Plus className="w-7 h-7 stroke-[2.75]" />
+              <Plus className="w-6 h-6 stroke-[2.75]" />
             </button>
             <span className="text-[9px] font-extrabold text-emerald-400 uppercase tracking-widest mt-1">
               Log

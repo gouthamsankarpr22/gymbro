@@ -21,7 +21,10 @@ import {
   CheckCircle2,
   ChevronDown,
   ChevronUp,
-  Sparkles
+  Sparkles,
+  Eye,
+  EyeOff,
+  Plus
 } from 'lucide-react';
 import { formatWeight, getSplitBadgeColor, triggerPRConfetti } from '@/lib/utils';
 import { triggerHaptic, shareGymBroContent } from '@/lib/mobile-utils';
@@ -35,6 +38,8 @@ interface BroFeedProps {
   onOpenMemeModal: () => void;
   onOpenPRModal: () => void;
   onCreateQuickPost: (content: string) => void;
+  showDemoPosts?: boolean;
+  onToggleDemoPosts?: (show: boolean) => void;
 }
 
 export const BroFeed: React.FC<BroFeedProps> = ({
@@ -46,12 +51,16 @@ export const BroFeed: React.FC<BroFeedProps> = ({
   onOpenMemeModal,
   onOpenPRModal,
   onCreateQuickPost,
+  showDemoPosts = false,
+  onToggleDemoPosts,
 }) => {
   const [filterType, setFilterType] = useState<string>('all');
   const [quickPostText, setQuickPostText] = useState('');
   const [expandedComments, setExpandedComments] = useState<Record<string, boolean>>({});
   const [commentInputs, setCommentInputs] = useState<Record<string, string>>({});
   const [expandedExercises, setExpandedExercises] = useState<Record<string, boolean>>({});
+
+  const isSeedUser = ['user-alex', 'alex_lifts', 'marcus_v', 'jordan_lee', 'leo_power', 'elena_lifts'].includes(currentUser.id) || currentUser.id.startsWith('seed-');
 
   const filteredPosts = posts.filter((p) => {
     if (filterType === 'all') return true;
@@ -112,9 +121,9 @@ export const BroFeed: React.FC<BroFeedProps> = ({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Brotherhood Header Banner */}
-      <div className="p-5 rounded-2xl bg-gradient-to-r from-zinc-900 via-zinc-900 to-zinc-950 border border-zinc-800/80 shadow-xl relative overflow-hidden">
+      <div className="p-4 sm:p-6 rounded-2xl bg-gradient-to-r from-zinc-900 via-zinc-900 to-zinc-950 border border-zinc-800/80 shadow-xl relative overflow-hidden">
         <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
@@ -127,24 +136,24 @@ export const BroFeed: React.FC<BroFeedProps> = ({
                 Live Squad Feed
               </span>
             </div>
-            <h1 className="text-2xl font-black tracking-tight text-white">
+            <h1 className="text-xl sm:text-2xl font-black tracking-tight text-white">
               Stay Connected With Your Day-One Gym Bros
             </h1>
-            <p className="text-xs sm:text-sm text-zinc-400 mt-1 max-w-2xl">
+            <p className="text-xs sm:text-sm text-zinc-400 mt-1 max-w-2xl leading-relaxed">
               Different cities, college campuses, and work schedules can’t break the iron bond. Celebrate PRs, spot each other through the screen, and hold each other accountable daily.
             </p>
           </div>
-          <div className="flex items-center gap-2.5">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
             <button
               onClick={onOpenLogWorkout}
-              className="px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold text-xs flex items-center gap-2 shadow-lg shadow-emerald-500/25 transition-all hover:scale-105 active:scale-95"
+              className="px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold text-xs flex items-center gap-2 shadow-lg shadow-emerald-500/25 transition-all hover:scale-105 active:scale-95"
             >
               <Dumbbell className="w-4 h-4 stroke-[2.5]" />
               Log Workout
             </button>
             <button
               onClick={onOpenPRModal}
-              className="px-4 py-2.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 font-bold text-xs flex items-center gap-2 transition"
+              className="px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 font-bold text-xs flex items-center gap-2 transition active:scale-95"
             >
               <Trophy className="w-4 h-4 text-amber-400" />
               Hit a PR
@@ -212,36 +221,129 @@ export const BroFeed: React.FC<BroFeedProps> = ({
         </div>
       </div>
 
-      {/* Filter Tabs */}
-      <div className="flex items-center space-x-2 overflow-x-auto pb-1 scrollbar-none">
-        {[
-          { id: 'all', label: 'All Updates' },
-          { id: 'workout', label: 'Workouts 🏋️' },
-          { id: 'pr', label: 'PR Alerts 🏆' },
-          { id: 'meme', label: 'Gym Memes 😂' },
-        ].map((tab) => (
+      {/* Demo Posts Active Banner (if user toggled demo on) */}
+      {!isSeedUser && showDemoPosts && (
+        <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-between text-xs text-amber-300 animate-fade-in">
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
+            <span>Viewing sample squad activity (4 demo posts) to explore feed features.</span>
+          </div>
+          {onToggleDemoPosts && (
+            <button
+              onClick={() => onToggleDemoPosts(false)}
+              className="text-xs font-bold underline hover:text-amber-200 shrink-0 ml-2"
+            >
+              Hide Demo Feed
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Filter Tabs & Demo Toggle */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-1">
+        <div className="flex items-center space-x-2 overflow-x-auto scrollbar-none py-0.5">
+          {[
+            { id: 'all', label: 'All Updates' },
+            { id: 'workout', label: 'Workouts 🏋️' },
+            { id: 'pr', label: 'PR Alerts 🏆' },
+            { id: 'meme', label: 'Gym Memes 😂' },
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setFilterType(tab.id)}
+              className={`px-3 sm:px-3.5 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap ${
+                filterType === tab.id
+                  ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                  : 'bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white hover:border-zinc-700'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Demo Toggle Pill for Real Users */}
+        {!isSeedUser && onToggleDemoPosts && (
           <button
-            key={tab.id}
-            onClick={() => setFilterType(tab.id)}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap ${
-              filterType === tab.id
-                ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                : 'bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white hover:border-zinc-700'
-            }`}
+            onClick={() => onToggleDemoPosts(!showDemoPosts)}
+            className="self-start sm:self-auto flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold text-zinc-400 hover:text-white bg-zinc-900 border border-zinc-800 hover:border-zinc-700 transition whitespace-nowrap shrink-0"
+            title="Toggle sample community posts to explore app features"
           >
-            {tab.label}
+            {showDemoPosts ? (
+              <>
+                <EyeOff className="w-3.5 h-3.5 text-amber-400" />
+                <span>Hide Demo Feed</span>
+              </>
+            ) : (
+              <>
+                <Eye className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Preview Demo Feed (4)</span>
+              </>
+            )}
           </button>
-        ))}
+        )}
       </div>
 
       {/* Posts List */}
-      <div className="space-y-5">
+      <div className="space-y-4 sm:space-y-5">
         {filteredPosts.length === 0 ? (
-          <div className="p-8 rounded-2xl bg-zinc-900/50 border border-zinc-800 text-center">
-            <Dumbbell className="w-8 h-8 text-zinc-600 mx-auto mb-2" />
-            <div className="text-sm font-semibold text-zinc-300">No updates found in this category</div>
-            <p className="text-xs text-zinc-500 mt-1">Be the first bro to log a workout or drop a gym meme!</p>
-          </div>
+          filterType !== 'all' ? (
+            <div className="p-6 sm:p-8 rounded-2xl bg-zinc-900/50 border border-zinc-800 text-center">
+              <Dumbbell className="w-8 h-8 text-zinc-600 mx-auto mb-2" />
+              <div className="text-sm font-semibold text-zinc-300">No updates in this category</div>
+              <p className="text-xs text-zinc-500 mt-1">Be the first bro to log a workout or record a PR!</p>
+            </div>
+          ) : (
+            /* Brand New User Motivational Empty State */
+            <div className="p-6 sm:p-8 rounded-2xl bg-gradient-to-b from-zinc-900/90 to-zinc-950 border border-zinc-800 text-center relative overflow-hidden shadow-xl">
+              <div className="absolute top-0 right-0 w-48 h-48 bg-emerald-500/5 rounded-full blur-2xl pointer-events-none" />
+              <div className="relative z-10 max-w-md mx-auto space-y-4">
+                <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center mx-auto text-emerald-400 shadow-lg shadow-emerald-500/10">
+                  <Dumbbell className="w-7 h-7 stroke-[2.5]" />
+                </div>
+                <div>
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 mb-2">
+                    Clean Iron Slate
+                  </span>
+                  <h3 className="text-lg sm:text-xl font-black text-white">
+                    Welcome to the Chalkboard, {currentUser.full_name.split(' ')[0]}!
+                  </h3>
+                  <p className="text-xs text-zinc-400 mt-1 leading-relaxed">
+                    Your feed is fresh and uncluttered. Every lifter’s journey starts with Day 1. Log your first workout, record a PR, or invite your gym partners to get the banter rolling.
+                  </p>
+                </div>
+
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-2.5 pt-2">
+                  <button
+                    onClick={onOpenLogWorkout}
+                    className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/25 transition active:scale-95"
+                  >
+                    <Dumbbell className="w-4 h-4 stroke-[2.5]" />
+                    <span>Log First Workout</span>
+                  </button>
+                  <button
+                    onClick={onOpenPRModal}
+                    className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 font-bold text-xs flex items-center justify-center gap-2 transition active:scale-95"
+                  >
+                    <Trophy className="w-4 h-4 text-amber-400" />
+                    <span>Record a PR</span>
+                  </button>
+                </div>
+
+                {!isSeedUser && onToggleDemoPosts && !showDemoPosts && (
+                  <div className="pt-2 border-t border-zinc-800/60">
+                    <button
+                      onClick={() => onToggleDemoPosts(true)}
+                      className="text-[11px] text-zinc-400 hover:text-emerald-400 flex items-center justify-center gap-1.5 mx-auto font-medium transition"
+                    >
+                      <Eye className="w-3.5 h-3.5" />
+                      <span>Curious how it looks? Preview 4 sample community posts</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )
         ) : (
           filteredPosts.map((post) => {
             const isCommentsOpen = !!expandedComments[post.id];
@@ -252,7 +354,7 @@ export const BroFeed: React.FC<BroFeedProps> = ({
             return (
               <article
                 key={post.id}
-                className="p-5 rounded-2xl bg-zinc-900/90 border border-zinc-800/90 shadow-lg hover:border-zinc-700/80 transition-all duration-200"
+                className="p-4 sm:p-5 rounded-2xl bg-zinc-900/90 border border-zinc-800/90 shadow-lg hover:border-zinc-700/80 transition-all duration-200"
               >
                 {/* Author Info & Distance Header */}
                 <div className="flex items-center justify-between mb-3.5">
@@ -426,7 +528,7 @@ export const BroFeed: React.FC<BroFeedProps> = ({
 
                 {/* Reactions & Interaction Bar */}
                 <div className="pt-2 border-t border-zinc-800/80 flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex items-center space-x-1.5">
+                  <div className="flex flex-wrap items-center gap-1 sm:gap-1.5">
                     {(['fist_bump', 'fire', 'heavy', 'hype', 'skull'] as ReactionType[]).map((reaction) => {
                       const count = post.reactions[reaction] || 0;
                       const hasReacted = post.user_reactions.includes(reaction);
@@ -441,7 +543,7 @@ export const BroFeed: React.FC<BroFeedProps> = ({
                               triggerPRConfetti();
                             }
                           }}
-                          className={`flex items-center space-x-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition active:scale-90 ${
+                          className={`flex items-center space-x-1 px-2 sm:px-2.5 py-1.5 rounded-lg text-xs font-semibold transition active:scale-90 ${
                             hasReacted
                               ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
                               : 'bg-zinc-800/60 text-zinc-400 hover:text-white hover:bg-zinc-800'
@@ -456,13 +558,14 @@ export const BroFeed: React.FC<BroFeedProps> = ({
                   </div>
 
                   {/* Comment & Share buttons */}
-                  <div className="flex items-center space-x-2">
+                  <div className="flex items-center space-x-1.5 sm:space-x-2">
                     <button
                       onClick={() => toggleCommentsView(post.id)}
-                      className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-zinc-400 hover:text-white hover:bg-zinc-800 transition"
+                      className="flex items-center space-x-1 sm:space-x-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold text-zinc-400 hover:text-white hover:bg-zinc-800 transition"
                     >
                       <MessageSquare className="w-3.5 h-3.5" />
-                      <span>{post.comments_count || 0} Comments</span>
+                      <span>{post.comments_count || 0}</span>
+                      <span className="hidden sm:inline">Comments</span>
                     </button>
                     <button
                       onClick={() => {

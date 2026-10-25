@@ -16,7 +16,9 @@ import {
   CheckCircle2, 
   AlertCircle,
   KeyRound,
-  RotateCcw
+  RotateCcw,
+  Zap,
+  Bell
 } from 'lucide-react';
 import { UserProfile } from '@/types';
 import { SEED_USERS } from '@/lib/seed-data';
@@ -59,8 +61,18 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
   const [generatedOtp, setGeneratedOtp] = useState('');
   const [otpError, setOtpError] = useState<string | null>(null);
   const [resendCountdown, setResendCountdown] = useState(45);
+  const [showSmsToast, setShowSmsToast] = useState(false);
 
   const otpInputsRef = useRef<(HTMLInputElement | null)[]>([]);
+
+  const handleAutoFillOtp = () => {
+    triggerHaptic('success');
+    if (generatedOtp) {
+      setOtpDigits(generatedOtp.split(''));
+      setOtpError(null);
+      setShowSmsToast(false);
+    }
+  };
 
   // Timer for OTP resend
   useEffect(() => {
@@ -126,6 +138,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
     setResendCountdown(45);
     setOtpDigits(['', '', '', '', '', '']);
     setOtpError(null);
+    setShowSmsToast(true);
     triggerHaptic('medium');
 
     // Auto focus first OTP input
@@ -163,6 +176,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
     setResendCountdown(45);
     setOtpDigits(['', '', '', '', '', '']);
     setOtpError(null);
+    setShowSmsToast(true);
     triggerHaptic('light');
   };
 
@@ -212,10 +226,32 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
   };
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-white flex flex-col justify-center items-center px-4 py-8 relative selection:bg-emerald-500 selection:text-zinc-950">
+    <div className="min-h-[100dvh] bg-zinc-950 text-white flex flex-col justify-center items-center px-3 sm:px-4 pt-[max(env(safe-area-inset-top,0px),1.5rem)] pb-[max(env(safe-area-inset-bottom,0px),2rem)] relative selection:bg-emerald-500 selection:text-zinc-950 overflow-x-hidden">
       {/* Background Ambience */}
       <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute bottom-10 right-10 w-72 h-72 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
+
+      {/* Simulated Mobile Carrier SMS / Email Push Toast Notification */}
+      {showSmsToast && isOtpStep && (
+        <div 
+          onClick={handleAutoFillOtp}
+          className="fixed top-4 inset-x-3 max-w-sm mx-auto z-50 p-3.5 rounded-2xl bg-zinc-900/95 border border-emerald-500/50 shadow-2xl backdrop-blur-xl flex items-center gap-3 cursor-pointer animate-slide-down ring-2 ring-emerald-500/30"
+        >
+          <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
+            <Bell className="w-5 h-5 animate-bounce" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-black uppercase text-emerald-400">GymBro Security • SMS</span>
+              <span className="text-[10px] text-zinc-500">Just now</span>
+            </div>
+            <p className="text-xs text-white font-medium truncate">
+              Your verification code is <span className="font-mono font-black text-emerald-300">{generatedOtp}</span>
+            </p>
+            <span className="text-[10px] font-extrabold text-emerald-400 underline">⚡ Tap here to 1-Tap Auto-Fill</span>
+          </div>
+        </div>
+      )}
 
       {/* Main Container */}
       <div className="w-full max-w-md relative z-10 space-y-6">
@@ -340,21 +376,21 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
               <div className="text-[10px] font-extrabold uppercase tracking-wider text-zinc-500 mb-2.5 text-center">
                 Or 1-Tap Quick Demo Login As
               </div>
-              <div className="grid grid-cols-5 gap-2">
+              <div className="grid grid-cols-5 gap-1.5 sm:gap-2">
                 {allUsers.slice(0, 5).map((u) => (
                   <button
                     key={u.id}
                     onClick={() => handleQuickDemoLogin(u)}
                     title={`Log in as ${u.full_name}`}
-                    className="flex flex-col items-center p-2 rounded-xl bg-zinc-950 border border-zinc-800 hover:border-emerald-500/50 transition group"
+                    className="flex flex-col items-center p-1.5 sm:p-2 rounded-xl bg-zinc-950 border border-zinc-800 hover:border-emerald-500/50 transition group"
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={u.avatar_url}
                       alt={u.full_name}
-                      className="w-7 h-7 rounded-lg object-cover ring-1 ring-zinc-700 group-hover:ring-emerald-400 transition"
+                      className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg object-cover ring-1 ring-zinc-700 group-hover:ring-emerald-400 transition"
                     />
-                    <span className="text-[9px] font-bold text-zinc-400 group-hover:text-white mt-1 truncate max-w-[50px]">
+                    <span className="text-[8px] sm:text-[9px] font-bold text-zinc-400 group-hover:text-white mt-1 truncate max-w-[46px]">
                       {u.full_name.split(' ')[0]}
                     </span>
                   </button>
@@ -492,8 +528,8 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
 
         {/* SIGN UP STEP 2: OTP VERIFICATION */}
         {isOtpStep && (
-          <div className="bg-zinc-900/95 border border-zinc-800 rounded-3xl p-6 shadow-2xl backdrop-blur-xl space-y-5 animate-slide-up">
-            <div className="text-center space-y-1.5">
+          <div className="bg-zinc-900/95 border border-zinc-800 rounded-3xl p-5 sm:p-6 shadow-2xl backdrop-blur-xl space-y-4 animate-slide-up">
+            <div className="text-center space-y-1">
               <div className="w-12 h-12 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center mx-auto">
                 <ShieldCheck className="w-6 h-6 stroke-[2.5]" />
               </div>
@@ -501,24 +537,20 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
               <p className="text-xs text-zinc-400">
                 A 6-digit OTP code has been dispatched to:
               </p>
-              <div className="text-xs font-bold text-emerald-400 bg-zinc-950 py-1.5 px-3 rounded-xl border border-zinc-800 inline-block">
+              <div className="text-xs font-bold text-emerald-400 bg-zinc-950 py-1.5 px-3 rounded-xl border border-zinc-800 inline-block max-w-full truncate">
                 📱 {phone} & ✉️ {email}
               </div>
             </div>
 
-            {/* Simulated Live OTP Banner */}
-            <div className="p-3.5 rounded-2xl bg-gradient-to-r from-emerald-950/60 to-zinc-950 border border-emerald-500/40 text-center space-y-1">
-              <div className="text-[10px] font-extrabold uppercase tracking-widest text-zinc-400 flex items-center justify-center gap-1">
-                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                Live Verification Code
-              </div>
-              <div className="text-2xl font-black text-white font-mono tracking-widest">
-                {generatedOtp}
-              </div>
-              <div className="text-[10px] text-zinc-500">
-                (Enter this code below to confirm phone & email ownership)
-              </div>
-            </div>
+            {/* 1-Tap Auto Fill Hero Button */}
+            <button
+              type="button"
+              onClick={handleAutoFillOtp}
+              className="w-full py-2.5 px-3 rounded-xl bg-emerald-500/15 border border-emerald-500/40 hover:bg-emerald-500/25 text-emerald-400 font-black text-xs flex items-center justify-center gap-2 transition active:scale-95 cursor-pointer shadow-md"
+            >
+              <Zap className="w-4 h-4 text-amber-400" />
+              <span>⚡ Tap to Auto-Fill Code ({generatedOtp})</span>
+            </button>
 
             {otpError && (
               <div className="p-3 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2">
@@ -527,9 +559,9 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
               </div>
             )}
 
-            <form onSubmit={handleVerifyOtpAndCreate} className="space-y-5">
-              {/* 6 Digit Input Boxes */}
-              <div className="flex justify-between gap-2">
+            <form onSubmit={handleVerifyOtpAndCreate} className="space-y-4">
+              {/* 6 Digit Input Boxes (Mobile Responsive width) */}
+              <div className="flex justify-between gap-1.5 sm:gap-2 max-w-full">
                 {otpDigits.map((digit, index) => (
                   <input
                     key={index}
@@ -542,7 +574,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                     value={digit}
                     onChange={(e) => handleOtpChange(index, e.target.value)}
                     onKeyDown={(e) => handleOtpKeyDown(index, e)}
-                    className="w-12 h-14 bg-zinc-950 border border-zinc-800 rounded-xl text-center text-xl font-black text-white focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition"
+                    className="w-10 sm:w-12 h-12 sm:h-14 bg-zinc-950 border border-zinc-800 rounded-xl text-center text-lg sm:text-xl font-black text-white focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition"
                   />
                 ))}
               </div>
@@ -552,7 +584,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                 <button
                   type="button"
                   onClick={() => setIsOtpStep(false)}
-                  className="hover:text-white underline"
+                  className="hover:text-white underline text-xs"
                 >
                   Edit details
                 </button>
@@ -561,10 +593,10 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                   type="button"
                   onClick={handleResendOtp}
                   disabled={resendCountdown > 0}
-                  className="font-bold text-emerald-400 disabled:opacity-40 disabled:hover:text-emerald-400 hover:underline flex items-center gap-1"
+                  className="font-bold text-emerald-400 disabled:opacity-40 disabled:hover:text-emerald-400 hover:underline flex items-center gap-1 text-xs"
                 >
                   <RotateCcw className="w-3 h-3" />
-                  {resendCountdown > 0 ? `Resend OTP in ${resendCountdown}s` : 'Resend OTP'}
+                  {resendCountdown > 0 ? `Resend in ${resendCountdown}s` : 'Resend Code'}
                 </button>
               </div>
 

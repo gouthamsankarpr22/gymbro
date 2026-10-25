@@ -63,25 +63,25 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-zinc-800/80 bg-zinc-950/85 backdrop-blur-md pt-[env(safe-area-inset-top,0px)]">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo & Brand */}
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-2 sm:space-x-3">
             <button 
               onClick={() => setActiveTab('feed')}
-              className="flex items-center space-x-2.5 text-left group transition-all"
+              className="flex items-center space-x-2 sm:space-x-2.5 text-left group transition-all"
             >
-              <div className="relative p-2 rounded-xl bg-gradient-to-tr from-emerald-600 to-lime-500 shadow-lg shadow-emerald-500/20 group-hover:scale-105 transition-transform">
+              <div className="relative p-1.5 sm:p-2 rounded-xl bg-gradient-to-tr from-emerald-600 to-lime-500 shadow-lg shadow-emerald-500/20 group-hover:scale-105 transition-transform">
                 <Dumbbell className="w-5 h-5 text-zinc-950 stroke-[2.5]" />
               </div>
               <div>
-                <span className="text-xl font-black tracking-tight text-white flex items-center gap-1.5">
+                <span className="text-lg sm:text-xl font-black tracking-tight text-white flex items-center gap-1.5">
                   GymBro
-                  <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                  <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
                     Squad
                   </span>
                 </span>
-                <span className="text-[11px] block font-medium text-zinc-400">
+                <span className="text-[10px] sm:text-[11px] hidden sm:block font-medium text-zinc-400">
                   Stay Connected • Lift Together
                 </span>
               </div>
@@ -297,13 +297,13 @@ export const Navbar: React.FC<NavbarProps> = ({
               )}
             </div>
 
-            {/* Log Workout Button */}
+            {/* Log Workout Button (Desktop/Tablet) */}
             <button
               onClick={onOpenLogWorkout}
-              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-extrabold text-xs shadow-lg shadow-emerald-500/20 transition-all hover:scale-105 active:scale-95"
+              className="hidden sm:flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-extrabold text-xs shadow-lg shadow-emerald-500/20 transition-all hover:scale-105 active:scale-95"
             >
               <PlusCircle className="w-4 h-4 stroke-[2.5]" />
-              <span className="hidden sm:inline">Log Workout</span>
+              <span>Log Workout</span>
             </button>
 
             {/* User Switcher (Persona Dropdown) */}

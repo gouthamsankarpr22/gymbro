@@ -62,7 +62,8 @@ export default function Home() {
   const [allUsers, setAllUsers] = useState<UserProfile[]>(SEED_USERS);
   const [squads, setSquads] = useState<Squad[]>(SEED_SQUADS);
   const [activeSquadId, setActiveSquadId] = useState<string>('all');
-  const [posts, setPosts] = useState<FeedPost[]>(SEED_POSTS);
+  const [posts, setPosts] = useState<FeedPost[]>([]);
+  const [showDemoPosts, setShowDemoPosts] = useState<boolean>(false);
   const [prs, setPrs] = useState<PersonalRecord[]>(SEED_PRS);
   const [nudges, setNudges] = useState<BroNudge[]>(SEED_NUDGES);
 
@@ -129,12 +130,17 @@ export default function Home() {
     setCurrentUser(user);
     setAllUsers(gymBroStore.getAllUsers());
     setSquads(gymBroStore.getSquads());
-    setPosts(gymBroStore.getFeedPosts());
+    setPosts(gymBroStore.getFeedPosts(activeSquadId, showDemoPosts));
     setPrs(gymBroStore.getPersonalRecords());
     setNudges(gymBroStore.getNudges());
     setGuilds(gymBroStore.getGuilds());
     setGuildWars(gymBroStore.getGuildWars());
     setInvitations(gymBroStore.getUserGuildInvitations(user.id));
+  };
+
+  const handleToggleDemoPosts = (show: boolean) => {
+    setShowDemoPosts(show);
+    setPosts(gymBroStore.getFeedPosts(activeSquadId, show));
   };
 
   const handleSwitchUser = (userId: string) => {
@@ -145,7 +151,7 @@ export default function Home() {
 
   const handleSelectSquad = (id: string) => {
     setActiveSquadId(id);
-    setPosts(gymBroStore.getFeedPosts(id));
+    setPosts(gymBroStore.getFeedPosts(id, showDemoPosts));
   };
 
   const handleToggleReaction = (postId: string, reaction: ReactionType) => {
@@ -155,7 +161,7 @@ export default function Home() {
 
   const handleAddComment = (postId: string, content: string) => {
     gymBroStore.addComment(postId, content);
-    setPosts(gymBroStore.getFeedPosts(activeSquadId));
+    setPosts(gymBroStore.getFeedPosts(activeSquadId, showDemoPosts));
   };
 
   const handleSaveWorkout = (workoutData: {
@@ -357,7 +363,7 @@ export default function Home() {
       />
 
       {/* Main App Layout */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-28 lg:pb-8">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 pb-[calc(env(safe-area-inset-bottom,0px)+7.5rem)] lg:pb-8">
         {isGuildSubView ? (
           /* Full-width view for Guild Detail & War Dashboard */
           <div className="w-full">
@@ -403,6 +409,8 @@ export default function Home() {
                   onOpenMemeModal={() => setActiveTab('memes')}
                   onOpenPRModal={() => setIsAddPROpen(true)}
                   onCreateQuickPost={handleQuickPost}
+                  showDemoPosts={showDemoPosts}
+                  onToggleDemoPosts={handleToggleDemoPosts}
                 />
               )}
 

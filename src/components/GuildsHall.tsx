@@ -63,7 +63,7 @@ export const GuildsHall: React.FC<GuildsHallProps> = ({
   return (
     <div className="space-y-6">
       {/* Top Banner */}
-      <div className="p-6 rounded-3xl bg-gradient-to-r from-zinc-950 via-zinc-900 to-zinc-950 border border-zinc-800 shadow-2xl relative overflow-hidden">
+      <div className="p-4 sm:p-6 rounded-2xl sm:rounded-3xl bg-gradient-to-r from-zinc-950 via-zinc-900 to-zinc-950 border border-zinc-800 shadow-2xl relative overflow-hidden">
         <div className="absolute top-0 right-0 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
 
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -75,7 +75,7 @@ export const GuildsHall: React.FC<GuildsHallProps> = ({
               </span>
               <span className="text-xs text-zinc-400">Competitive Team Brotherhood</span>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-black text-white">
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-black text-white">
               Unite Your Crew. Wage Guild Wars.
             </h1>
             <p className="text-xs sm:text-sm text-zinc-400 mt-1 max-w-2xl leading-relaxed">
@@ -83,7 +83,7 @@ export const GuildsHall: React.FC<GuildsHallProps> = ({
             </p>
           </div>
 
-          <div className="flex items-center gap-2.5">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
             <button
               onClick={() => setIsCreateModalOpen(true)}
               className="px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-black text-xs flex items-center gap-2 shadow-lg shadow-emerald-500/25 transition hover:scale-105 active:scale-95 whitespace-nowrap"

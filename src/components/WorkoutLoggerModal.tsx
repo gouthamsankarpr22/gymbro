@@ -149,7 +149,7 @@ export const WorkoutLoggerModal: React.FC<WorkoutLoggerModalProps> = ({
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-zinc-950/80 backdrop-blur-sm overflow-y-auto">
       <div 
-        className="w-full max-w-2xl bg-zinc-900 border border-zinc-800 rounded-t-3xl sm:rounded-3xl shadow-2xl p-5 sm:p-6 relative max-sm:max-h-[88vh] overflow-y-auto my-0 sm:my-8 animate-slide-up"
+        className="w-full max-w-2xl bg-zinc-900 border border-zinc-800 rounded-t-3xl sm:rounded-3xl shadow-2xl p-4 sm:p-6 pb-[max(env(safe-area-inset-bottom,0px),1.5rem)] relative max-sm:max-h-[92dvh] overflow-y-auto my-0 sm:my-8 animate-slide-up"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Mobile Swipe / Drag Handle */}
@@ -294,7 +294,7 @@ export const WorkoutLoggerModal: React.FC<WorkoutLoggerModalProps> = ({
                     />
                   </div>
 
-                  <div className="flex items-center space-x-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <div className="flex items-center space-x-1">
                       <span className="text-[10px] text-zinc-500 uppercase">Sets</span>
                       <input

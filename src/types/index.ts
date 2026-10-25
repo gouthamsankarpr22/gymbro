@@ -105,6 +105,7 @@ export interface FeedPost {
   comments_count: number;
   comments?: PostComment[];
   created_at: string;
+  is_demo?: boolean;
 }
 
 export interface BroNudge {
