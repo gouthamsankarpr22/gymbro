@@ -85,7 +85,9 @@ export function evaluateWorkoutContribution(
   }
 
   // Check daily scoring cap (1 workout per calendar day)
-  const workoutDateStr = new Date(workout.completed_at || workout.created_at).toISOString().split('T')[0];
+  const rawDate = workout.created_at || workout.completed_at;
+  const parsedDate = rawDate && !isNaN(Date.parse(rawDate)) ? new Date(rawDate) : new Date();
+  const workoutDateStr = parsedDate.toISOString().split('T')[0];
   const sameDayContribution = userContributionsInWar.some(c => {
     if (c.contribution_type !== 'workout') return false;
     const cDate = new Date(c.recorded_at).toISOString().split('T')[0];

@@ -62,69 +62,83 @@ const STORAGE_KEYS = {
   AUTH_SESSION: 'gymbro_auth_session',
 };
 
-// Client-safe storage helper
+// Client-safe storage helper with in-memory fallback
 class GymBroStore {
   private isClient = typeof window !== 'undefined';
+  private memoryStore = new Map<string, string>();
+
+  private hasItem(key: string): boolean {
+    if (this.isClient && typeof localStorage !== 'undefined') {
+      return localStorage.getItem(key) !== null;
+    }
+    return this.memoryStore.has(key);
+  }
 
   private getItem<T>(key: string, fallback: T): T {
-    if (!this.isClient) return fallback;
     try {
-      const item = localStorage.getItem(key);
-      return item ? JSON.parse(item) : fallback;
+      if (this.isClient && typeof localStorage !== 'undefined') {
+        const item = localStorage.getItem(key);
+        return item ? JSON.parse(item) : fallback;
+      } else {
+        const item = this.memoryStore.get(key);
+        return item ? JSON.parse(item) : fallback;
+      }
     } catch {
       return fallback;
     }
   }
 
   private setItem<T>(key: string, value: T): void {
-    if (!this.isClient) return;
     try {
-      localStorage.setItem(key, JSON.stringify(value));
+      const serialized = JSON.stringify(value);
+      if (this.isClient && typeof localStorage !== 'undefined') {
+        localStorage.setItem(key, serialized);
+      }
+      this.memoryStore.set(key, serialized);
     } catch (e) {
       console.warn('LocalStorage error:', e);
     }
   }
 
   public init() {
-    if (!this.isClient) return;
-    if (!localStorage.getItem(STORAGE_KEYS.USERS)) {
+    if (!this.hasItem(STORAGE_KEYS.USERS)) {
       this.setItem(STORAGE_KEYS.USERS, SEED_USERS);
     }
-    if (!localStorage.getItem(STORAGE_KEYS.CURRENT_USER)) {
+    if (!this.hasItem(STORAGE_KEYS.CURRENT_USER)) {
       this.setItem(STORAGE_KEYS.CURRENT_USER, SEED_USERS[0]);
     }
-    if (!localStorage.getItem(STORAGE_KEYS.POSTS)) {
+    if (!this.hasItem(STORAGE_KEYS.POSTS)) {
       this.setItem(STORAGE_KEYS.POSTS, SEED_POSTS);
     }
-    if (!localStorage.getItem(STORAGE_KEYS.PRS)) {
+    if (!this.hasItem(STORAGE_KEYS.PRS)) {
       this.setItem(STORAGE_KEYS.PRS, SEED_PRS);
     }
-    if (!localStorage.getItem(STORAGE_KEYS.SQUADS)) {
+    if (!this.hasItem(STORAGE_KEYS.SQUADS)) {
       this.setItem(STORAGE_KEYS.SQUADS, SEED_SQUADS);
     }
-    if (!localStorage.getItem(STORAGE_KEYS.NUDGES)) {
+    if (!this.hasItem(STORAGE_KEYS.NUDGES)) {
       this.setItem(STORAGE_KEYS.NUDGES, SEED_NUDGES);
     }
     // Initialize Guilds & Wars
-    if (!localStorage.getItem(STORAGE_KEYS.GUILDS)) {
+    if (!this.hasItem(STORAGE_KEYS.GUILDS)) {
       this.setItem(STORAGE_KEYS.GUILDS, SEED_GUILDS);
     }
-    if (!localStorage.getItem(STORAGE_KEYS.GUILD_MEMBERS)) {
+    if (!this.hasItem(STORAGE_KEYS.GUILD_MEMBERS)) {
       this.setItem(STORAGE_KEYS.GUILD_MEMBERS, SEED_GUILD_MEMBERS);
     }
-    if (!localStorage.getItem(STORAGE_KEYS.GUILD_INVITATIONS)) {
+    if (!this.hasItem(STORAGE_KEYS.GUILD_INVITATIONS)) {
       this.setItem(STORAGE_KEYS.GUILD_INVITATIONS, SEED_GUILD_INVITATIONS);
     }
-    if (!localStorage.getItem(STORAGE_KEYS.GUILD_WARS)) {
+    if (!this.hasItem(STORAGE_KEYS.GUILD_WARS)) {
       this.setItem(STORAGE_KEYS.GUILD_WARS, SEED_GUILD_WARS);
     }
-    if (!localStorage.getItem(STORAGE_KEYS.WAR_PARTICIPANTS)) {
+    if (!this.hasItem(STORAGE_KEYS.WAR_PARTICIPANTS)) {
       this.setItem(STORAGE_KEYS.WAR_PARTICIPANTS, SEED_WAR_PARTICIPANTS);
     }
-    if (!localStorage.getItem(STORAGE_KEYS.WAR_CONTRIBUTIONS)) {
+    if (!this.hasItem(STORAGE_KEYS.WAR_CONTRIBUTIONS)) {
       this.setItem(STORAGE_KEYS.WAR_CONTRIBUTIONS, SEED_WAR_CONTRIBUTIONS);
     }
-    if (!localStorage.getItem(STORAGE_KEYS.FRIENDSHIPS)) {
+    if (!this.hasItem(STORAGE_KEYS.FRIENDSHIPS)) {
       this.setItem(STORAGE_KEYS.FRIENDSHIPS, SEED_FRIENDSHIPS);
     }
   }
