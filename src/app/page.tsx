@@ -21,6 +21,9 @@ import { GuildsHall } from '@/components/GuildsHall';
 import { GuildDetailView } from '@/components/GuildDetailView';
 import { GuildWarDashboard } from '@/components/GuildWarDashboard';
 
+// Authentication Screen
+import { AuthScreen } from '@/components/AuthScreen';
+
 import { gymBroStore } from '@/lib/storage';
 import { 
   SEED_USERS, 
@@ -49,7 +52,8 @@ import {
   MapPin, 
   ChevronRight,
   Swords,
-  Trophy
+  Trophy,
+  Dumbbell
 } from 'lucide-react';
 import { formatWeight, triggerPRConfetti } from '@/lib/utils';
 
@@ -75,9 +79,15 @@ export default function Home() {
   const [isAddPROpen, setIsAddPROpen] = useState(false);
   const [isSupabaseModalOpen, setIsSupabaseModalOpen] = useState(false);
 
+  // Authentication state
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [isClientReady, setIsClientReady] = useState<boolean>(false);
+
   // Initialize store, service worker, and sync persisted data on client
   useEffect(() => {
     gymBroStore.init();
+    setIsAuthenticated(gymBroStore.isLoggedIn());
+    setIsClientReady(true);
     refreshAllData();
     registerServiceWorker();
 
@@ -94,6 +104,25 @@ export default function Home() {
       }
     }
   }, []);
+
+  const handleLoginSuccess = (user: UserProfile) => {
+    setCurrentUser(user);
+    setIsAuthenticated(true);
+    refreshAllData();
+  };
+
+  const handleLogin = (identifier: string, pass: string) => {
+    return gymBroStore.login(identifier, pass);
+  };
+
+  const handleRegister = (data: { full_name: string; email: string; phone: string; age: number; password: string }) => {
+    return gymBroStore.register(data);
+  };
+
+  const handleLogout = () => {
+    gymBroStore.logout();
+    setIsAuthenticated(false);
+  };
 
   const refreshAllData = () => {
     const user = gymBroStore.getCurrentUser();
@@ -284,6 +313,30 @@ export default function Home() {
     gymBroStore.getGuildMembers(g.id).some((m) => m.user_id === currentUser.id)
   );
 
+  if (!isClientReady) {
+    return (
+      <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center text-white p-4">
+        <div className="w-14 h-14 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 mb-4 animate-pulse shadow-lg shadow-emerald-500/20">
+          <Dumbbell className="w-7 h-7" />
+        </div>
+        <div className="text-sm font-black tracking-wider uppercase text-zinc-300">
+          Loading GymBro...
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <AuthScreen
+        onLoginSuccess={handleLoginSuccess}
+        allUsers={allUsers}
+        onLogin={handleLogin}
+        onRegister={handleRegister}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col selection:bg-emerald-500 selection:text-zinc-950">
       {/* Sticky Header */}
@@ -300,6 +353,7 @@ export default function Home() {
         onRespondNudge={handleRespondNudge}
         activeTab={activeTab}
         setActiveTab={setActiveTab}
+        onLogout={handleLogout}
       />
 
       {/* Main App Layout */}
@@ -400,6 +454,7 @@ export default function Home() {
                 <ProfileView
                   user={currentUser}
                   onUpdateProfile={handleUpdateProfile}
+                  onLogout={handleLogout}
                 />
               )}
             </div>
@@ -677,6 +732,7 @@ export default function Home() {
         hasActiveWar={guildWars.some((w) => w.status === 'active')}
         pendingNudgesCount={nudges.filter((n) => n.to_user_id === currentUser.id && n.status === 'pending').length}
         currentUser={currentUser}
+        onLogout={handleLogout}
       />
     </div>
   );

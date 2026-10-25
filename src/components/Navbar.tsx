@@ -13,7 +13,8 @@ import {
   MapPin, 
   Sparkles,
   Award,
-  Shield
+  Shield,
+  LogOut
 } from 'lucide-react';
 import { UserProfile, Squad, BroNudge } from '@/types';
 import { isSupabaseConfigured } from '@/lib/supabase/client';
@@ -31,6 +32,7 @@ interface NavbarProps {
   onRespondNudge: (nudgeId: string) => void;
   activeTab: 'feed' | 'prs' | 'guilds' | 'radar' | 'memes' | 'profile';
   setActiveTab: (tab: 'feed' | 'prs' | 'guilds' | 'radar' | 'memes' | 'profile') => void;
+  onLogout?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -46,6 +48,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onRespondNudge,
   activeTab,
   setActiveTab,
+  onLogout,
 }) => {
   const [showUserDropdown, setShowUserDropdown] = useState(false);
   const [showSquadDropdown, setShowSquadDropdown] = useState(false);
@@ -366,6 +369,21 @@ export const Navbar: React.FC<NavbarProps> = ({
                       {u.id === currentUser.id && <Check className="w-4 h-4 text-emerald-400" />}
                     </button>
                   ))}
+
+                  {onLogout && (
+                    <div className="pt-1.5 mt-1.5 border-t border-zinc-800 px-1">
+                      <button
+                        onClick={() => {
+                          setShowUserDropdown(false);
+                          onLogout();
+                        }}
+                        className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-bold text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 flex items-center gap-2 transition cursor-pointer"
+                      >
+                        <LogOut className="w-3.5 h-3.5" />
+                        <span>Log Out of GymBro</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

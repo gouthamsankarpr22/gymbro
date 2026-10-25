@@ -10,6 +10,10 @@ export interface UserProfile {
   full_name: string;
   avatar_url: string;
   bio?: string;
+  email?: string;
+  phone?: string;
+  age?: number;
+  password?: string;
   hometown_gym: string;
   current_location: string; // e.g. "Penn State (420 miles away)", "Working in Seattle"
   current_streak: number; // days

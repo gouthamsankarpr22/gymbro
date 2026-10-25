@@ -15,7 +15,8 @@ import {
   Activity, 
   CheckCircle,
   TrendingUp,
-  Award
+  Award,
+  LogOut
 } from 'lucide-react';
 import { 
   ResponsiveContainer, 
@@ -33,6 +34,7 @@ import { formatWeight } from '@/lib/utils';
 interface ProfileViewProps {
   user: UserProfile;
   onUpdateProfile: (updated: Partial<UserProfile>) => void;
+  onLogout?: () => void;
 }
 
 const SPLIT_DISTRIBUTION = [
@@ -56,6 +58,7 @@ const WEEKLY_CONSISTENCY = [
 export const ProfileView: React.FC<ProfileViewProps> = ({
   user,
   onUpdateProfile,
+  onLogout,
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [bio, setBio] = useState(user.bio || '');
@@ -103,13 +106,25 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
             </div>
           </div>
 
-          <button
-            onClick={() => setIsEditing(!isEditing)}
-            className="px-4 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white font-bold text-xs flex items-center gap-2 transition self-start md:self-center"
-          >
-            <Edit3 className="w-3.5 h-3.5" />
-            <span>{isEditing ? 'Cancel Edit' : 'Edit Profile'}</span>
-          </button>
+          <div className="flex items-center gap-2.5 self-start md:self-center">
+            <button
+              onClick={() => setIsEditing(!isEditing)}
+              className="px-4 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white font-bold text-xs flex items-center gap-2 transition"
+            >
+              <Edit3 className="w-3.5 h-3.5" />
+              <span>{isEditing ? 'Cancel Edit' : 'Edit Profile'}</span>
+            </button>
+            {onLogout && (
+              <button
+                onClick={onLogout}
+                className="px-4 py-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 font-bold text-xs flex items-center gap-2 transition"
+                title="Log out of GymBro"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span>Log Out</span>
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Inline Profile Editor */}

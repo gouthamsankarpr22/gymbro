@@ -13,7 +13,8 @@ import {
   X,
   Bell,
   Sparkles,
-  ChevronRight
+  ChevronRight,
+  LogOut
 } from 'lucide-react';
 import { UserProfile, BroNudge } from '@/types';
 import { triggerHaptic } from '@/lib/mobile-utils';
@@ -25,6 +26,7 @@ interface MobileBottomNavProps {
   hasActiveWar?: boolean;
   pendingNudgesCount: number;
   currentUser: UserProfile;
+  onLogout?: () => void;
 }
 
 export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
@@ -34,6 +36,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
   hasActiveWar = true,
   pendingNudgesCount,
   currentUser,
+  onLogout,
 }) => {
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
 
@@ -130,6 +133,20 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
                 <span className="text-[10px] text-zinc-500">Lifting Log</span>
               </button>
             </div>
+
+            {onLogout && (
+              <button
+                onClick={() => {
+                  triggerHaptic('light');
+                  setIsMoreMenuOpen(false);
+                  onLogout();
+                }}
+                className="w-full py-2.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 font-bold text-xs flex items-center justify-center gap-2 hover:bg-rose-500/20 transition active:scale-95 cursor-pointer"
+              >
+                <LogOut className="w-4 h-4" />
+                <span>Sign Out of GymBro</span>
+              </button>
+            )}
           </div>
         </div>
       )}

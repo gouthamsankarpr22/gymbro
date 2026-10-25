@@ -59,6 +59,7 @@ const STORAGE_KEYS = {
   WAR_PARTICIPANTS: 'gymbro_war_participants',
   WAR_CONTRIBUTIONS: 'gymbro_war_contributions',
   FRIENDSHIPS: 'gymbro_friendships',
+  AUTH_SESSION: 'gymbro_auth_session',
 };
 
 // Client-safe storage helper
@@ -126,6 +127,110 @@ class GymBroStore {
     if (!localStorage.getItem(STORAGE_KEYS.FRIENDSHIPS)) {
       this.setItem(STORAGE_KEYS.FRIENDSHIPS, SEED_FRIENDSHIPS);
     }
+  }
+
+  // --- Authentication & Session ---
+  public isLoggedIn(): boolean {
+    return this.getItem<boolean>(STORAGE_KEYS.AUTH_SESSION, false);
+  }
+
+  public login(identifier: string, password: string): { success: boolean; user?: UserProfile; error?: string } {
+    const trimmed = identifier.trim().toLowerCase();
+    const users = this.getAllUsers();
+    const cleanDigits = identifier.replace(/\D/g, '');
+
+    const user = users.find(u => 
+      (u.email && u.email.toLowerCase() === trimmed) ||
+      (u.phone && cleanDigits.length >= 7 && u.phone.replace(/\D/g, '').endsWith(cleanDigits)) ||
+      (u.username && u.username.toLowerCase() === trimmed)
+    );
+
+    if (!user) {
+      return { success: false, error: 'No GymBro account found with this email, phone, or username' };
+    }
+
+    const expectedPassword = user.password || 'gymbro123';
+    if (password !== expectedPassword) {
+      return { success: false, error: 'Incorrect password. Please try again.' };
+    }
+
+    this.setCurrentUser(user);
+    this.setItem(STORAGE_KEYS.AUTH_SESSION, true);
+    return { success: true, user };
+  }
+
+  public register(data: { full_name: string; email: string; phone: string; age: number; password: string }): { success: boolean; user?: UserProfile; error?: string } {
+    const fullName = data.full_name.trim();
+    const email = data.email.trim().toLowerCase();
+    const phone = data.phone.trim();
+    const age = Number(data.age);
+    const password = data.password;
+
+    if (!fullName || fullName.length < 2) {
+      return { success: false, error: 'Please enter your full name (at least 2 characters)' };
+    }
+    if (!email || !email.includes('@') || !email.includes('.')) {
+      return { success: false, error: 'Please enter a valid email address' };
+    }
+    const cleanPhoneDigits = phone.replace(/\D/g, '');
+    if (!phone || cleanPhoneDigits.length < 7) {
+      return { success: false, error: 'Please enter a valid phone number (at least 7 digits)' };
+    }
+    if (!age || age < 13 || age > 120) {
+      return { success: false, error: 'Please enter a valid age (must be at least 13)' };
+    }
+    if (!password || password.length < 6) {
+      return { success: false, error: 'Password must be at least 6 characters long' };
+    }
+
+    const users = this.getAllUsers();
+    if (users.some(u => u.email && u.email.toLowerCase() === email)) {
+      return { success: false, error: 'An account with this email already exists. Please log in.' };
+    }
+    if (users.some(u => u.phone && u.phone.replace(/\D/g, '').endsWith(cleanPhoneDigits))) {
+      return { success: false, error: 'An account with this phone number already exists. Please log in.' };
+    }
+
+    const username = fullName.toLowerCase().replace(/[^a-z0-9]/g, '_') + '_' + Math.floor(100 + Math.random() * 900);
+    const newUser: UserProfile = {
+      id: `user-${Date.now()}`,
+      username,
+      full_name: fullName,
+      avatar_url: `https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&auto=format&fit=crop&q=80`,
+      email,
+      phone,
+      age,
+      password,
+      bio: `Lifting heavy and grinding daily with the GymBro squad 🏋️‍♂️`,
+      hometown_gym: 'Metro Iron Club',
+      current_location: 'Hometown Gym',
+      current_streak: 1,
+      total_workouts: 0,
+      favorite_lift: 'Barbell Bench Press',
+      big_three_total_kg: 0,
+      status: 'pumped',
+    };
+
+    this.setItem(STORAGE_KEYS.USERS, [newUser, ...users]);
+    this.setCurrentUser(newUser);
+    this.setItem(STORAGE_KEYS.AUTH_SESSION, true);
+
+    // Auto-befriend initial seed users so new user immediately has GymBro friends to invite to Guilds
+    const friendships = this.getItem<Friendship[]>(STORAGE_KEYS.FRIENDSHIPS, SEED_FRIENDSHIPS);
+    const newFriendships: Friendship[] = SEED_USERS.map((su, idx) => ({
+      id: `friend-${Date.now()}-${idx}`,
+      user_id: newUser.id,
+      friend_id: su.id,
+      status: 'accepted' as const,
+      created_at: new Date().toISOString(),
+    }));
+    this.setItem(STORAGE_KEYS.FRIENDSHIPS, [...newFriendships, ...friendships]);
+
+    return { success: true, user: newUser };
+  }
+
+  public logout(): void {
+    this.setItem(STORAGE_KEYS.AUTH_SESSION, false);
   }
 
   // --- Users ---
